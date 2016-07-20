@@ -1,7 +1,7 @@
 'use strict';
 
 
-require('./activity/index.js');
+require('./workflow/workflow.js');
 
 
 

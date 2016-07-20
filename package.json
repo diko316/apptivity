@@ -20,5 +20,8 @@
   "bugs": {
     "url": "https://github.com/diko316/apptivity/issues"
   },
-  "homepage": "https://github.com/diko316/apptivity#readme"
+  "homepage": "https://github.com/diko316/apptivity#readme",
+  "dependencies": {
+    "bluebird": "^3.4.1"
+  }
 }
