@@ -6,30 +6,101 @@ function Definition() {
     this.signatures = {};
     this.pending = {};
     this.states = {};
-    this.definitions = {
+    this.handler = {
         '[defaultGuard]': this.defaultGuard
     };
+    this.descriptions = {};
 }
 
 Definition.prototype = {
     guardIdGen: 0,
     states: void(0),
-    definitions: void(0),
+    handler: void(0),
+    descriptions: void(0),
     
     constructor: Definition,
+    
+    is: function (flag, item) {
+        if (item && typeof item === 'string') {
+            switch (item.charAt(0)) {
+            // guard
+            case '[':
+                if (item.charAt(item.length - 1) === ']') {
+                    return flag === 'guard';
+                }
+            /* fall through */
+            default:
+                return flag === 'state';
+            }
+        }
+        return false;
+    },
     
     defaultGuard: function (data) {
         return data;
     },
     
-    define: function () {
-        
+    describe: function (state) {
+        var descriptions = this.descriptions;
+        var items, item, l;
+        if (state && typeof state === 'string') {
+            switch (state.charAt(0)) {
+            // guard
+            case '[':
+                if (state.charAt(state.length - 1) === ']') {
+                    break;
+                }
+            /* fall through */
+            default:
+                state = ':' + state;
+            }
+            items = Array.prototype.slice.call(arguments, 1);
+            for (l = items.length; l--;) {
+                item = items[l];
+                if (!item || typeof item !== 'string') {
+                    items.splice(l, 1);
+                }
+            }
+            if (items.length) {
+                if (!(state in descriptions)) {
+                    descriptions[state] = [];
+                }
+                descriptions = descriptions[state];
+                descriptions.push.apply(descriptions, items);
+            }
+        }
+        return this;
+    },
+    
+    handle: function (state, handler) {
+        var pending = this.pending;
+
+        if (state && typeof state === 'string' &&
+            handler instanceof Function) {
+            switch (state.charAt(0)) {
+            // guard
+            case '[':
+                if (state.charAt(state.length - 1) === ']') {
+                    break;
+                }
+            /* fall through */
+            default:
+                state = ':' + state;
+            }
+            
+            this.handler[state] = handler;
+            
+            if (state in pending) {
+                delete pending[state];
+            }
+        }
+        return this;
     },
     
     link: function (from, to, guard) {
         var states = this.states,
             pending = this.pending,
-            definitions = this.definitions,
+            handler = this.handler,
             signatures = this.signatures,
             firstState = this.initialState;
         var id, source, sc, sl, target, tc, tl, stateDefinition, sdl, signature;
@@ -38,8 +109,8 @@ Definition.prototype = {
             
             // create guard
             if (guard instanceof Function) {
-                id = '!guard' + (++this.guardIdGen);
-                this.definitions[id] = guard;
+                id = '[guard' + (++this.guardIdGen) + ']';
+                handler[id] = guard;
                 guard = id;
             }
             else if (typeof guard === 'string') {
@@ -52,7 +123,7 @@ Definition.prototype = {
                 throw new Error('invalid [guard] string|function parameter');
             }
             
-            if (!(guard in definitions)) {
+            if (!(guard in handler)) {
                 pending[guard] = true;
             }
             
@@ -109,8 +180,8 @@ Definition.prototype = {
                     signatures[signature] = true;
                     stateDefinition[sdl++] = [target, guard];
                     
-                    if (!(id in definitions)) {
-                        pending[definitions] = true;
+                    if (!(id in handler)) {
+                        pending[id] = true;
                     }
                 }
             }
