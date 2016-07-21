@@ -1,7 +1,7 @@
 'use strict';
 
 
-require('./workflow/workflow.js');
+require('./define.js');
 
 
 
