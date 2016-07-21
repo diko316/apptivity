@@ -1,6 +1,7 @@
 'use strict';
 
-var Definition = require('./definition.js');
+var Definition = require('./definition.js'),
+    PROMISE = require('bluebird');
 
 // extend Workflow and create
 function create() {
@@ -9,8 +10,7 @@ function create() {
         description = null,
         properties = extend(Workflow.prototype).prototype,
         F = Function,
-        A = Array,
-        augment = augmentStateToMethod;
+        A = Array;
     var c, l, item, dl;
     
     
@@ -41,9 +41,9 @@ function create() {
                     }
                     
                     // augment if state handler
-                    if (definition.is('state', state)) {
-                        properties[state] = augment(state, item);
-                    }
+                    //if (definition.is('state', state)) {
+                    //    properties[state] = augment(definition, state, item);
+                    //}
                     state = null;
                 }
                 else {
@@ -57,6 +57,8 @@ function create() {
             }
         }
     }
+    
+    console.log(definition.states);
     
     return properties;
 
@@ -88,12 +90,57 @@ function extend(instance, properties) {
     return Workflow;
 }
 
-function augmentStateToMethod(state, handler) {
+function createTransition(definition, state) {
     
-    return function () {
-        
-    };
 }
+
+//function augmentStateToMethod(definition, state, handler) {
+//    //var id = ':' + state;
+//    
+//    return function () {
+//        //var transitions = definition.states[id],
+//        //    me = this,
+//        //    handlers = definition.handler,
+//        //    l = transitions.length,
+//        //    c = -1,
+//        //    targetStates = [],
+//        //    promises = [],
+//        //    P = PROMISE,
+//        //    args = arguments;
+//        //    
+//        //var item, target, guard;
+//        //
+//        //for (c = -1, l = transitions.length; l--;) {
+//        //    item = transitions[++c];
+//        //    target = item[0];
+//        //    guard = item[1];
+//        //    
+//        //    if (!(guard in handlers)) {
+//        //        throw new Error(
+//        //                'transition to state "' +
+//        //                    target +
+//        //                    '" has undefined guard [' +
+//        //                    guard +
+//        //                    ']');
+//        //    }
+//        //    targetStates[c] = target;
+//        //    promises[c] = P.method(guard).apply(me, args);
+//        //}
+//        //
+//        //
+//        //if (targetStates.length) {
+//        //    PROMISE.
+//        //}
+//        //// end state
+//        //else {
+//        //    
+//        //}
+//        //
+//        //// execute guard
+//        //
+//        //// execute others
+//    };
+//}
 
 function empty() {
     
@@ -120,6 +167,10 @@ console.log(
             ['action3', 'action4'],
             'allow'
         ],
+        '[allow]',
+            function (data) {
+                return data;
+            },
         [
             ['action3', 'action4'],
             'end'
@@ -127,7 +178,11 @@ console.log(
     )
 );
 
-
+PROMISE.all([
+    (function () {
+        return 'buang';
+    })
+]);
 //var definition = new Definition();
 //
 //definition.
