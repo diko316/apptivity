@@ -1,6 +1,6 @@
 'use strict';
 
-var START_STATE = '@root';
+var START_STATE = 'start';
 
 function define() {
     var tokens = arguments,
@@ -9,11 +9,13 @@ function define() {
         
         startState = START_STATE,
         state = startState,
+        finalReduceState = null,
         
         reduceState = null,
         input = null,
+        guardName = null,
         guard = null,
-        callback = null,
+        reducer = null,
         
         DESCRIPTION = 1,
         STATE = 2,
@@ -21,8 +23,11 @@ function define() {
         GUARD = 4,
         CALLBACK = 5,
         definition = {
-            map: {},
+            map: {
+                'start': {}
+            },
             guard: {},
+            reducer: {},
             reduce: {},
             
             stateGen: 0,
@@ -81,9 +86,12 @@ function define() {
             if (input) {
                 updateReducer(definition, state, input, reduceState);
             }
+            else if (!finalReduceState) {
+                finalReduceState = token;
+            }
             reduceState = token;
             state = startState;
-            input = guard = callback = null;
+            input = guardName = guard = reducer = null;
             break;
         
         case INPUT:
@@ -92,13 +100,12 @@ function define() {
                     'unable to find reduce state of [' + token + '] input');
             }
             input = token.substring(1, token.length);
-            id = state + ':' + input;
-            stateNames[id] = input;
+            stateNames[state + ' > ' + input] = input;
             
             // change current state
             state = updateTransition(definition, state, input);
 
-            guard = callback = null;
+            guardName = guard = reducer = null;
             break;
         
         case GUARD:
@@ -106,31 +113,31 @@ function define() {
                 throw new Error(
                     'unable to find transition to guard [' + token + ']');
             }
-            else if (guard) {
-                throw new Error('guard [' + guard + '] is already defined');
+            else if (guardName) {
+                throw new Error('guard [' + guardName + '] is already defined');
             }
             
-            guardNames[':' + state + '>' + input] = guard = token;
-            callback = null;
+            guardNames[state + ' > ' + input] = guardName = token;
+            guard = reducer = null;
             break;
         
         case DESCRIPTION:
             
             // used for guard
-            if (guard) {
-                id = ':' + state + '>' + input;
+            if (guardName) {
+                id = state + ' > ' + input;
                 list = definition.guardDescription;
             }
             
             // used for transition
             else if (input) {
-                id = ':' + state + '>' + input;
+                id = state + ' > ' + input;
                 list = definition.stateDescription;
             }
             
             // used for source
             else if (reduceState) {
-                id = ':' + reduceState;
+                id = reduceState;
                 list = definition.stateDescription;
             }
             
@@ -146,12 +153,47 @@ function define() {
             else {
                 list[id] = [token];
             }
+            break;
+        
+        case CALLBACK:
+            // used for guard
+            if (guardName) {
+                
+                id = state + ' > ' + input;
+                
+                if (guard) {
+                    throw new Error(
+                        'guard is already defined for transition ' + id);
+                }
+                
+                definition.guard[id] = guard = token;
+
+            }
             
+            // used for transition
+            else if (input) {
+                id = state + ' > ' + input;
+                
+                if (reducer) {
+                    throw new Error(
+                        'reducer is already defined for transition ' + id);
+                }
+                
+                definition.reducer[id] = reducer = token;
+            }
+            
+            // used for source
+            else if (reduceState) {
+                id = reduceState;
+                list = definition.stateDescription;
+            }
         }
+        
     }
     
     if (input) {
         updateReducer(definition, state, input, reduceState);
+        definition.finalReduce = finalReduceState;
     }
     
     //if (target) {
@@ -161,51 +203,46 @@ function define() {
     //    updateReducer(definition, currentState, input, null, state);
     //}
     
-    
-    
+    console.log(definition);
+    return definition;
     
 }
 
 
 function updateReducer(definition, current, input, reduceState) {
-    console.log('reduce in ', current, ':', input, ' -> ', reduceState);
+    var map = definition.map,
+        reducers = definition.reduce;
+        
+    reducers[current + ' > ' + input] = reduceState;
+
 }
 
-function updateTransition(definition, current, input, target) {
-    var nextState = 'state' + (++definition.stateGen);
-    //var map = definition.map;
-    //var state, id;
-    //
-    //id = ':' + from;
-    //
-    //if (!(id in map)) {
-    //    map[id] = state = {};
-    //}
-    //else {
-    //    state = map[id];
-    //}
-    //
-    //id = ':' + to;
-    //if (id in state) {
-    //    throw new Error(
-    //        "transition from [" + from + "] to [" + to + "] has conflict");
-    //}
-    //state[id] = true;
-    console.log('transition in ', current, ': ', input, ' -> ', nextState);
+function updateTransition(definition, current, input) {
+    
+    var map = definition.map,
+        state = map[current];
+        
+    var nextState;
+   
+    if (!Object.prototype.hasOwnProperty.call(state, input)) {
+        nextState = 'state' + (++definition.stateGen);
+        state[input] = nextState;
+    }
+    else {
+        nextState = state[input];
+    }
+    
+    if (!(nextState in map)) {
+        map[nextState] = {};
+    }
+    
     return nextState;
+
 }
 
 function finalize(definition, from, to, state) {
     
 }
 
-console.log('here! ');
 
-define(
-    'createUser',
-        '>showCreateForm',
-            '# launch create form',
-        '>submit',
-            '# at this stage, this state must wait'
-);
-
+module.exports = define;

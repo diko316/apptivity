@@ -1,7 +1,7 @@
 'use strict';
 
 
-require('./define.js');
+//require('./fsm.js');
 
 
 
