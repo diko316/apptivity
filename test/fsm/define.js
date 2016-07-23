@@ -6,22 +6,24 @@ it('should create a state map without errors',
     function () {
         var result = false,
             error = 'none';
-        try {
+        
+        //try {
             result = fsm.define(
                 'createUser',
                     '# create a User',
                     '>formLaunched',
                         '# launch create form',
                         
+                    '[validated]',
+                        '# must validate before anything else',
+                        function () {
+                            console.log('data must be validated');
+                        },
+                        
                     '>submit',
                         '# at this stage, this state must wait',
                         function () {
                             console.log('submitting!');
-                        },
-                        
-                        '[validated]',
-                        function () {
-                            console.log('data must be validated');
                         },
                         
                 'formLaunched',
@@ -33,11 +35,11 @@ it('should create a state map without errors',
                 
             );
 
-        }
-        catch (e) {
-            console.warn(e);
-            error = e.toString();
-        }
+        //}
+        //catch (e) {
+        //    console.warn(e);
+        //    error = e.toString();
+        //}
         
         assert(result !== false, error);
         

@@ -8,14 +8,12 @@ function define() {
         c = -1,
         
         startState = START_STATE,
-        state = startState,
         finalReduceState = null,
         
         reduceState = null,
-        input = null,
-        guardName = null,
+        state = startState,
         guard = null,
-        reducer = null,
+        transition = null,
         
         DESCRIPTION = 1,
         STATE = 2,
@@ -27,20 +25,16 @@ function define() {
                 'start': {}
             },
             guard: {},
-            reducer: {},
+            callback: {},
             reduce: {},
+            transitions: {},
             
             stateGen: 0,
-            stateNames: {},
-            stateDescription: {},
+            stateDescription: {}
             
-            guardNames: {},
-            guardDescription: {}
-        },
-        guardNames = definition.guardNames,
-        stateNames = definition.stateNames;
+        };
         
-    var token, flag, id, description, list;
+    var token, flag, id, list;
     
     for (; l--;) {
         token = tokens[++c];
@@ -79,19 +73,40 @@ function define() {
             throw new Error("invalid [token] parameter " + token);
         }
         
+        
+        
         // parse input
         switch (flag) {
         case STATE:
-            // reduce what is left
-            if (input) {
-                updateReducer(definition, state, input, reduceState);
+            // reduce what is left, and add description
+            if (transition) {
+                updateReducer(definition, transition, reduceState);
+                if (guard) {
+                    updateGuard(definition, transition, guard);
+                }
             }
             else if (!finalReduceState) {
                 finalReduceState = token;
             }
             reduceState = token;
             state = startState;
-            input = guardName = guard = reducer = null;
+            guard = transition = guard;
+            break;
+        
+        case GUARD:
+            if (!reduceState) {
+                throw new Error(
+                    'unable to find transition to guard [' + token + ']');
+            }
+            else if (guard) {
+                throw new Error('guard [' + guard.name + '] is already defined');
+            }
+            guard = {
+                name: token,
+                callback: null,
+                description: []
+            };
+            transition = null;
             break;
         
         case INPUT:
@@ -99,46 +114,78 @@ function define() {
                 throw new Error(
                     'unable to find reduce state of [' + token + '] input');
             }
-            input = token.substring(1, token.length);
-            stateNames[state + ' > ' + input] = input;
+            token = token.substring(1, token.length);
+            
+            transition = {
+                id: state + ' > ' + token,
+                state: state,
+                input: token,
+                callback: null,
+                description: []
+            };
             
             // change current state
-            state = updateTransition(definition, state, input);
+            state = updateTransition(definition, transition);
+            
+            if (guard) {
+                updateGuard(definition, transition, guard);
+            }
 
-            guardName = guard = reducer = null;
+            guard = null;
+            
             break;
         
-        case GUARD:
-            if (!input) {
-                throw new Error(
-                    'unable to find transition to guard [' + token + ']');
-            }
-            else if (guardName) {
-                throw new Error('guard [' + guardName + '] is already defined');
-            }
-            
-            guardNames[state + ' > ' + input] = guardName = token;
-            guard = reducer = null;
-            break;
-        
-        case DESCRIPTION:
-            
-            // used for guard
-            if (guardName) {
-                id = state + ' > ' + input;
-                list = definition.guardDescription;
-            }
+        case CALLBACK:
             
             // used for transition
-            else if (input) {
-                id = state + ' > ' + input;
-                list = definition.stateDescription;
+            if (transition) {
+                
+                if (transition.callback) {
+                    throw new Error(
+                        'reducer is already defined for transition ' + id);
+                }
+
+                transition.callback = token;
+            }
+            
+            // used for guard
+            else if (guard) {
+                
+                if (guard.callback) {
+                    throw new Error(
+                        'guard is already defined [' + guard.name + ']');
+                }
+                guard.callback = token;
+            
             }
             
             // used for source
             else if (reduceState) {
-                id = reduceState;
+                
+            }
+            break;
+        
+        
+        case DESCRIPTION:
+            
+            // used for transition
+            if (transition) {
+                list = transition.description;
+            }
+            
+            // used for guard
+            else if (guard) {
+                list = guard.description;
+            }
+           
+            // used for source
+            else if (reduceState) {
                 list = definition.stateDescription;
+                id = ':' + reduceState;
+                if (!(id in list)) {
+                    list[id] = [];
+                }
+                list = list[id];
             }
             
             // nothing to describe
@@ -146,80 +193,48 @@ function define() {
                 throw new Error('unable to find item to describe');
             }
             
-            if (id in list) {
-                description = list[id];
-                description[description.length] = token;
-            }
-            else {
-                list[id] = [token];
-            }
+            list[list.length] = token;
+            
             break;
         
-        case CALLBACK:
-            // used for guard
-            if (guardName) {
-                
-                id = state + ' > ' + input;
-                
-                if (guard) {
-                    throw new Error(
-                        'guard is already defined for transition ' + id);
-                }
-                
-                definition.guard[id] = guard = token;
-
-            }
-            
-            // used for transition
-            else if (input) {
-                id = state + ' > ' + input;
-                
-                if (reducer) {
-                    throw new Error(
-                        'reducer is already defined for transition ' + id);
-                }
-                
-                definition.reducer[id] = reducer = token;
-            }
-            
-            // used for source
-            else if (reduceState) {
-                id = reduceState;
-                list = definition.stateDescription;
-            }
         }
         
     }
     
-    if (input) {
-        updateReducer(definition, state, input, reduceState);
+    if (transition) {
+        updateReducer(definition, transition, reduceState);
+        if (guard) {
+            updateGuard(definition, transition, guard);
+        }
         definition.finalReduce = finalReduceState;
     }
     
-    //if (target) {
-    //    updateReducer(definition, currentState, input, target, state);
-    //}
-    //else if (input) {
-    //    updateReducer(definition, currentState, input, null, state);
-    //}
-    
-    console.log(definition);
+    //console.log(require('util').inspect(definition, { showHidden: true, depth: 10 }));
+    //console.log(definition);
+
     return definition;
     
 }
 
-
-function updateReducer(definition, current, input, reduceState) {
-    var map = definition.map,
-        reducers = definition.reduce;
-        
-    reducers[current + ' > ' + input] = reduceState;
+function updateReducer(definition, transition, reduceState) {
+    var reducers = definition.reduce,
+        map = definition.map;
+    
+    reducers[map[transition.state][transition.input]] = reduceState;
 
 }
 
-function updateTransition(definition, current, input) {
+function updateGuard(definition, transition, guard) {
+    definition.guard[transition.state + ' > ' + transition.input] = guard;
+    
+}
+
+function updateTransition(definition, transition) {
     
     var map = definition.map,
+        transitions = definition.transitions,
+        current = transition.state,
+        input = transition.input,
         state = map[current];
         
     var nextState;
@@ -236,13 +251,12 @@ function updateTransition(definition, current, input) {
         map[nextState] = {};
     }
     
+    transitions[current + ' > ' + input] = transition;
+    
     return nextState;
 
 }
 
-function finalize(definition, from, to, state) {
-    
-}
 
 
 module.exports = define;
