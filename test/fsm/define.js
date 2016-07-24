@@ -8,7 +8,7 @@ it('should create a state map without errors',
             error = 'none';
         
         //try {
-            result = fsm.define(
+            result = fsm.define([
                 'createUser',
                     '# create a User',
                     '>formLaunched',
@@ -33,7 +33,7 @@ it('should create a state map without errors',
                     '>render',
                         '# render webform'
                 
-            );
+            ]);
 
         //}
         //catch (e) {

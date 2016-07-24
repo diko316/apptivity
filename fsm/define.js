@@ -2,9 +2,8 @@
 
 var START_STATE = 'start';
 
-function define() {
-    var tokens = arguments,
-        l = tokens.length,
+function define(tokens) {
+    var l = tokens.length,
         c = -1,
         
         startState = START_STATE,
@@ -21,11 +20,12 @@ function define() {
         GUARD = 4,
         CALLBACK = 5,
         definition = {
+            startState: startState,
             map: {
                 'start': {}
             },
+            input: {},
             guard: {},
-            callback: {},
             reduce: {},
             transitions: {},
             

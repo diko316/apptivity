@@ -13,5 +13,15 @@ global.use = function (id) {
 
 describe('fsm API',
     function () {
-        require('./fsm/define.js');
+        
+        describe('fsm.define(config:array)',
+            function () {
+                require('./fsm/define.js');
+            });
+        
+        describe('fsm.create(config:array)',
+            function () {
+                require('./fsm/create.js');
+            });
+        
     });
