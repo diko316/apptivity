@@ -1,6 +1,6 @@
 'use strict';
 
-var fsm = use('fsm/index.js');
+var define = use('fsm/define.js');
 
 it('should create a state map without errors',
     function () {
@@ -8,7 +8,7 @@ it('should create a state map without errors',
             error = 'none';
         
         //try {
-            result = fsm.define([
+            result = define([
                 'createUser',
                     '# create a User',
                     '>formLaunched',

@@ -1,10 +1,9 @@
 'use strict';
 
-var fsm = use('fsm/index.js');
 
 it('should create workflow without errors',
     function () {
-        var Workflow = fsm.create([
+        var Workflow = use('fsm/workflow.js')([
                     'createUser',
                         '# create a User',
                         '>formLaunched',
@@ -18,13 +17,14 @@ it('should create workflow without errors',
                             
                         '>submit',
                             '# at this stage, this state must wait',
-                            function () {
-                                console.log('submitting!');
+                            function (data) {
+                                //console.log('submitting!');
+                                return data;
                             },
                             
                     'formLaunched',
                         function () {
-                            console.log('form launched!');
+                            //console.log('form launched!');
                             return 'form launch data';
                         },
                         '>getWebForm',
@@ -33,7 +33,7 @@ it('should create workflow without errors',
                         '>render',
                             '# render webform',
                             function () {
-                                console.log('render!');
+                                //console.log('render!');
                                 return 'render data';
                             },
                     
@@ -43,10 +43,10 @@ it('should create workflow without errors',
         //console.log(require('util').inspect(instance, { showHidden: true }));
         instance.getWebForm('test').
             then(function () {
-                console.log('after getWebform ', arguments);
+                //console.log('after getWebform ', arguments);
                 return instance.render('render');
             }).
             then(function () {
-                console.log('after render', arguments, instance.iterator.get());
+                //console.log('after render', arguments, instance.iterator.get());
             });
     });

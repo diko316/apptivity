@@ -237,7 +237,7 @@ function updateReducer(definition, transition, reduceState, callback) {
     
     // create callback
     if (callback) {
-        callbacks[definition.startState + ' > ' + reduceState] = callback;
+        callbacks[state] = callback;
     }
 }
 

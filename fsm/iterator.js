@@ -1,17 +1,18 @@
 'use strict';
 
+
 function create(definition) {
     var transitions = definition.transitions,
         map = definition.map,
         currentState = definition.startState,
         lastTransition = null,
         EXPORTS = {
+            scope: null,
             get: get,
             list: listAvailableInput,
             transition: transition,
             lookup: lookup,
             next: next,
-            reduce: reduce,
             reset: reset
         };
     
@@ -55,17 +56,6 @@ function create(definition) {
         if (nextState) {
             lastTransition = currentState + ' > ' + action;
             currentState = nextState;
-        }
-        
-        return void(0);
-    }
-    
-    function reduce() {
-        var current = currentState,
-            reduceStates = definition.reduce;
-        
-        if (current in reduceStates) {
-            return reduceStates[current];
         }
         
         return void(0);

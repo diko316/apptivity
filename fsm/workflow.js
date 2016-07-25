@@ -5,17 +5,16 @@ var DEFINE = require('./define.js'),
     PROMISE = require('bluebird');
 
 function create(config) {
-    var instance, Class;
+    var Class;
     
     if (config instanceof Array) {
         Class = extend(Workflow.prototype, DEFINE(config));
         return Class;
     }
     
-    
+    return void(0);
     
 }
-
 
 
 function extend(Superinstance, definition) {
@@ -25,18 +24,18 @@ function extend(Superinstance, definition) {
         reduceStates = definition.reduce,
         map = definition.map,
         methodIndex = {},
-        allMethods = {};
+        allMethods = {},
+        SuperClass = Superinstance.constructor;
         
     var Prototype, name, item, method, methodInput, methodId, state;
     
     function Workflow() {
         this.iterator = ITERATOR(definition);
+        SuperClass.apply(this, arguments);
     }
     
     E.prototype = Superinstance;
     Workflow.prototype = Prototype = new E();
-    
-    console.log(definition);
     
     // create methods
     for (name in transitions) {
@@ -74,38 +73,34 @@ function defaultCallback(data) {
 
 function createMethod(definition, action, all) {
     
-    var stateCallbacks = definition.callbacks,
-        guardMethods = definition.guard,
-        guards = {},
+    var guards = {},
         callbacks = {};
     
     return function () {
         
         var me = this,
+            def = definition,
+            stateCallbacks = def.callbacks,
+            guardMethods = def.guard,
+            reduceIndex = def.reduce,
             iterator = me.iterator,
             next = iterator.lookup(action),
             P = PROMISE,
-            promise = null;
+            promise = null,
+            rid = null;
         var transition, id, args;
         
         if (next) {
             args = arguments;
             id = iterator.get() + ' > ' + action;
-            transition = definition.transitions[id];
+            transition = def.transitions[id];
             
             // guard and iterate
             if (id in guardMethods) {
                 if (!(id in guards)) {
                     guards[id] = P.method(guardMethods[id].callback);
                 }
-                promise = guards[id].apply(me, args).
-                            then(function () {
-                                iterator.next(action);
-                            });
-            }
-            // directly iterate
-            else {
-                iterator.next(action);
+                promise = guards[id].apply(me, args);
             }
             
             // callback
@@ -114,6 +109,17 @@ function createMethod(definition, action, all) {
                                     P.method(stateCallbacks[id]) :
                                     defaultCallback;
             }
+            
+            // is reducable
+            if (next in reduceIndex) {
+                rid = reduceIndex[next];
+                
+                if (next in stateCallbacks && !(next in callbacks)) {
+                    callbacks[next] = P.method(stateCallbacks[next]);
+                }
+                
+            }
+            
             return (promise ?
                         promise.
                             then(function () {
@@ -122,14 +128,31 @@ function createMethod(definition, action, all) {
                             
                         callbacks[id].apply(me, args)).
         
+        
                     then(function (data) {
-                            var reducedAction = iterator.reduce();
-                            if (reducedAction) {
-                                iterator.reset();
-                                return all[reducedAction].call(me, data);
-                            }
+                        var nextState = next,
+                            list = callbacks,
+                            reduceAction = rid;
+                        
+                        // iterate and return if cannot reduce
+                        if (!reduceAction) {
+                            iterator.next(action);
                             return data;
-                        });
+                        }
+                        
+                        // reduce by reset and apply reduce action
+                        if (!(nextState in list)) {
+                            iterator.reset();
+                            return all[reduceAction].call(me, data);
+                        }
+                        
+                        // call handler before reduce action
+                        return list[nextState].call(me, data).
+                                    then(function (data) {
+                                        iterator.reset();
+                                        return all[reduceAction].call(me, data);
+                                    });
+                    });
 
         }
         return P.reject('unable to process [' + action + ']');
@@ -140,8 +163,11 @@ function empty() {
     
 }
 
-function Workflow() {
-    
+function Workflow(onPublish) {
+    var iterator = this.iterator;
+    if (iterator && onPublish instanceof Function) {
+        iterator.onPublish = onPublish;
+    }
 }
 
 Workflow.prototype = {
