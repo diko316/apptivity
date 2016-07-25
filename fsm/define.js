@@ -10,6 +10,7 @@ function define(tokens) {
         finalReduceState = null,
         
         reduceState = null,
+        reduceStateCallback = null,
         state = startState,
         guard = null,
         transition = null,
@@ -24,7 +25,7 @@ function define(tokens) {
             map: {
                 'start': {}
             },
-            input: {},
+            callbacks: {},
             guard: {},
             reduce: {},
             transitions: {},
@@ -32,7 +33,8 @@ function define(tokens) {
             stateGen: 0,
             stateDescription: {}
             
-        };
+        },
+        transitionCallbacks = definition.callbacks;
         
     var token, flag, id, list;
     
@@ -80,7 +82,7 @@ function define(tokens) {
         case STATE:
             // reduce what is left, and add description
             if (transition) {
-                updateReducer(definition, transition, reduceState);
+                updateReducer(definition, transition, reduceState, reduceStateCallback);
                 if (guard) {
                     updateGuard(definition, transition, guard);
                 }
@@ -120,7 +122,6 @@ function define(tokens) {
                 id: state + ' > ' + token,
                 state: state,
                 input: token,
-                callback: null,
                 description: []
             };
             
@@ -139,13 +140,15 @@ function define(tokens) {
             
             // used for transition
             if (transition) {
+                id = transition.id;
                 
-                if (transition.callback) {
+                if (id in transitionCallbacks) {
                     throw new Error(
-                        'reducer is already defined for transition ' + id);
+                        'callback is already defined in ' + transition.input);
                 }
+                
+                transitionCallbacks[id] = token;
 
-                transition.callback = token;
             }
             
             // used for guard
@@ -161,6 +164,12 @@ function define(tokens) {
             
             // used for source
             else if (reduceState) {
+                
+                if (reduceStateCallback) {
+                    throw new Error(
+                        'callback is already defined in ' + reduceState);
+                }
+                reduceStateCallback = token;
                 
             }
             break;
@@ -202,7 +211,7 @@ function define(tokens) {
     }
     
     if (transition) {
-        updateReducer(definition, transition, reduceState);
+        updateReducer(definition, transition, reduceState, reduceStateCallback);
         if (guard) {
             updateGuard(definition, transition, guard);
         }
@@ -216,12 +225,20 @@ function define(tokens) {
     
 }
 
-function updateReducer(definition, transition, reduceState) {
+function updateReducer(definition, transition, reduceState, callback) {
     var reducers = definition.reduce,
-        map = definition.map;
+        map = definition.map,
+        callbacks = definition.callbacks,
+        state = map[transition.state][transition.input];
     
-    reducers[map[transition.state][transition.input]] = reduceState;
-
+    reducers[state] = reduceState;
+    
+    reducers[':' + reduceState] = state;
+    
+    // create callback
+    if (callback) {
+        callbacks[definition.startState + ' > ' + reduceState] = callback;
+    }
 }
 
 function updateGuard(definition, transition, guard) {

@@ -51,13 +51,19 @@ function extend(Superinstance, definition) {
                 allMethods[methodInput] = method;
                 state = map[item.state][methodInput];
                 
-                Prototype[methodInput] = method;
+                // non-reduce input methods can be exposed
+                if (!(methodId in reduceStates)) {
+                    Prototype[methodInput] = method;
+                }
                 
             }
         }
     }
     
     Prototype.constructor = Workflow;
+    Prototype.valueOf = function () {
+        return definition;
+    };
     
     return Workflow;
 }
@@ -66,19 +72,21 @@ function defaultCallback(data) {
     return data;
 }
 
-function createMethod(definition, action) {
+function createMethod(definition, action, all) {
     
-    var guardMethods = definition.guard,
+    var stateCallbacks = definition.callbacks,
+        guardMethods = definition.guard,
         guards = {},
         callbacks = {};
     
     return function () {
+        
         var me = this,
             iterator = me.iterator,
             next = iterator.lookup(action),
             P = PROMISE,
             promise = null;
-        var transition, id, callback, args;
+        var transition, id, args;
         
         if (next) {
             args = arguments;
@@ -102,9 +110,9 @@ function createMethod(definition, action) {
             
             // callback
             if (!(id in callbacks)) {
-                callback = transition.callback;
-                callbacks[id] = callback ?
-                                    P.method(callback) : defaultCallback;
+                callbacks[id] = id in stateCallbacks ?
+                                    P.method(stateCallbacks[id]) :
+                                    defaultCallback;
             }
             return (promise ?
                         promise.
@@ -113,12 +121,12 @@ function createMethod(definition, action) {
                                 }) :
                             
                         callbacks[id].apply(me, args)).
+        
                     then(function (data) {
                             var reducedAction = iterator.reduce();
-                            
                             if (reducedAction) {
                                 iterator.reset();
-                                me[reducedAction]();
+                                return all[reducedAction].call(me, data);
                             }
                             return data;
                         });

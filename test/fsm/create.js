@@ -23,11 +23,19 @@ it('should create workflow without errors',
                             },
                             
                     'formLaunched',
+                        function () {
+                            console.log('form launched!');
+                            return 'form launch data';
+                        },
                         '>getWebForm',
                             '# get from from http server',
                             
                         '>render',
-                            '# render webform'
+                            '# render webform',
+                            function () {
+                                console.log('render!');
+                                return 'render data';
+                            },
                     
                 ]),
             instance = new Workflow();
@@ -36,5 +44,9 @@ it('should create workflow without errors',
         instance.getWebForm('test').
             then(function () {
                 console.log('after getWebform ', arguments);
+                return instance.render('render');
+            }).
+            then(function () {
+                console.log('after render', arguments, instance.iterator.get());
             });
     });
