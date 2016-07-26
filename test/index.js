@@ -10,6 +10,8 @@ global.use = function (id) {
     return require(path.resolve(mainPath, id));
 };
 
+// preload bluebird (very slow to load)
+require('bluebird');
 
 describe('fsm API',
     function () {

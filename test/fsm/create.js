@@ -40,7 +40,7 @@ it('should create workflow without errors',
                 ]),
             instance = new Workflow();
         
-        //console.log(require('util').inspect(instance, { showHidden: true }));
+        //console.log(require('util').inspect(instance.valueOf(), { showHidden: true }));
         instance.getWebForm('test').
             then(function () {
                 //console.log('after getWebform ', arguments);
@@ -49,4 +49,6 @@ it('should create workflow without errors',
             then(function () {
                 //console.log('after render', arguments, instance.iterator.get());
             });
+            
+        
     });

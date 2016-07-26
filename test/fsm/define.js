@@ -7,7 +7,7 @@ it('should create a state map without errors',
         var result = false,
             error = 'none';
         
-        //try {
+        try {
             result = define([
                 'createUser',
                     '# create a User',
@@ -34,12 +34,12 @@ it('should create a state map without errors',
                         '# render webform'
                 
             ]);
-
-        //}
-        //catch (e) {
-        //    console.warn(e);
-        //    error = e.toString();
-        //}
+        
+        }
+        catch (e) {
+            console.warn(e);
+            error = e.toString();
+        }
         
         assert(result !== false, error);
         

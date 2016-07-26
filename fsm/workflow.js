@@ -2,7 +2,10 @@
 
 var DEFINE = require('./define.js'),
     ITERATOR = require('./iterator.js'),
-    PROMISE = require('bluebird');
+    PROMISE = require('bluebird'),
+    defaultCallback = PROMISE.method(function (data) {
+                        return data;
+                    });
 
 function create(config) {
     var Class;
@@ -37,15 +40,22 @@ function extend(Superinstance, definition) {
     E.prototype = Superinstance;
     Workflow.prototype = Prototype = new E();
     
+    Prototype.$$guard = {};
+    Prototype.$$callback = {};
+    Prototype.$$reduce = {};
+    
     // create methods
     for (name in transitions) {
         if (hasOwn.call(transitions, name)) {
             item = transitions[name];
             methodInput = item.input;
             methodId = ':' + methodInput;
+            
+            bootstrapTransition(Prototype, definition, item);
+            
             if (!(methodId in methodIndex)) {
                 
-                method = createMethod(definition, item.input, allMethods);
+                method = createMethod(item.input, allMethods);
                 
                 allMethods[methodInput] = method;
                 state = map[item.state][methodInput];
@@ -67,95 +77,108 @@ function extend(Superinstance, definition) {
     return Workflow;
 }
 
-function defaultCallback(data) {
-    return data;
+
+function bootstrapTransition(properties, definition, transition) {
+    var callbacks = properties.$$callback,
+        guards = properties.$$guard,
+        reduce = properties.$$reduce,
+        P = PROMISE,
+        defGuards = definition.guard,
+        defCallbacks = definition.callbacks,
+        defReducer = definition.reduce,
+        id = transition.id,
+        next = definition.map[transition.state][transition.input];
+    var item;
+    
+    // define guard
+    if (id in defGuards) {
+        item = defGuards[id].callback;
+        if (item) {
+            guards[id] = P.method(item);
+        }
+    }
+    
+    // define callback
+    if (id in defCallbacks) {
+        callbacks[id] = P.method(defCallbacks[id]);
+    }
+    
+    if (next in defReducer) {
+        
+        reduce[id] = defReducer[next];
+        
+        if (next in defCallbacks) {
+            callbacks['< ' + id] = P.method(defCallbacks[next]);
+        }
+    }
+    
 }
 
-function createMethod(definition, action, all) {
-    
-    var guards = {},
-        callbacks = {};
-    
+
+function createMethod(action, all) {
     return function () {
-        
         var me = this,
-            def = definition,
-            stateCallbacks = def.callbacks,
-            guardMethods = def.guard,
-            reduceIndex = def.reduce,
             iterator = me.iterator,
-            next = iterator.lookup(action),
-            P = PROMISE,
+            guards = me.$$guard,
+            callbacks = me.$$callback,
+            reducers = me.$$reduce,
+            input = action,
+            next = iterator.lookup(input),
             promise = null,
-            rid = null;
-        var transition, id, args;
+            args = arguments;
+            
+        var id, rid;
         
         if (next) {
-            args = arguments;
-            id = iterator.get() + ' > ' + action;
-            transition = def.transitions[id];
             
-            // guard and iterate
-            if (id in guardMethods) {
-                if (!(id in guards)) {
-                    guards[id] = P.method(guardMethods[id].callback);
-                }
+            id = iterator.get() + ' > ' + input;
+            
+            // guard
+            if (id in guards) {
                 promise = guards[id].apply(me, args);
             }
             
-            // callback
-            if (!(id in callbacks)) {
-                callbacks[id] = id in stateCallbacks ?
-                                    P.method(stateCallbacks[id]) :
-                                    defaultCallback;
-            }
-            
-            // is reducable
-            if (next in reduceIndex) {
-                rid = reduceIndex[next];
-                
-                if (next in stateCallbacks && !(next in callbacks)) {
-                    callbacks[next] = P.method(stateCallbacks[next]);
-                }
-                
-            }
-            
-            return (promise ?
-                        promise.
-                            then(function () {
+            // transition
+            if (id in callbacks) {
+                promise = promise ?
+                            promise.
+                                then(function () {
                                     return callbacks[id].apply(me, args);
-                                }) :
-                            
-                        callbacks[id].apply(me, args)).
-        
-        
-                    then(function (data) {
-                        var nextState = next,
-                            list = callbacks,
-                            reduceAction = rid;
-                        
-                        // iterate and return if cannot reduce
-                        if (!reduceAction) {
+                                })
+                            :
+                            callbacks[id].apply(me, args);
+            }
+            else {
+                promise = defaultCallback(args[0]);
+            }
+            
+            // reduce
+            if (id in reducers) {
+                rid = '< ' + id;
+                
+                if (rid in callbacks) {
+                    promise = promise.
+                                then(function (data) {
+                                    return callbacks[rid].call(me, data);
+                                });
+                }
+                return promise.
+                            then(function (data) {
+                                iterator.reset();
+                                return all[reducers[id]].call(me, data);
+                            });
+            }
+            
+            // continue if cannot reduce
+            return promise.
+                        then(function (data) {
                             iterator.next(action);
                             return data;
-                        }
-                        
-                        // reduce by reset and apply reduce action
-                        if (!(nextState in list)) {
-                            iterator.reset();
-                            return all[reduceAction].call(me, data);
-                        }
-                        
-                        // call handler before reduce action
-                        return list[nextState].call(me, data).
-                                    then(function (data) {
-                                        iterator.reset();
-                                        return all[reduceAction].call(me, data);
-                                    });
-                    });
-
+                        });
+            
         }
-        return P.reject('unable to process [' + action + ']');
+        
+        return PROMISE.reject('unable to process [' + input + ']');
     };
 }
 
@@ -175,7 +198,6 @@ Workflow.prototype = {
     constructor: Workflow
 };
 
-// augment default callback
-defaultCallback = PROMISE.method(defaultCallback);
+
 
 module.exports = create;
