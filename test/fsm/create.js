@@ -3,7 +3,8 @@
 
 it('should create workflow without errors',
     function () {
-        var Workflow = use('fsm/workflow.js')([
+        var workflow = use('fsm/workflow.js').
+                define('test/create/workflow', [
                     'createUser',
                         '# create a User',
                         '>formLaunched',
@@ -37,14 +38,14 @@ it('should create workflow without errors',
                                 return 'render data';
                             },
                     
-                ]),
-            instance = new Workflow();
+                ])('test/create/workflow');
+            
         
         //console.log(require('util').inspect(instance.valueOf(), { showHidden: true }));
-        instance.getWebForm('test').
+        workflow.getWebForm('test').
             then(function () {
                 //console.log('after getWebform ', arguments);
-                return instance.render('render');
+                return workflow.render('render');
             }).
             then(function () {
                 //console.log('after render', arguments, instance.iterator.get());

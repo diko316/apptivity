@@ -3,22 +3,40 @@
 var DEFINE = require('./define.js'),
     ITERATOR = require('./iterator.js'),
     PROMISE = require('bluebird'),
+    EVENTS = require('interesting')(),
+    WORKFLOWS = {},
+    EXPORTS = instantiate,
     defaultCallback = PROMISE.method(function (data) {
                         return data;
                     });
 
-function create(config) {
+function define(name, config) {
+    var list = WORKFLOWS;
     var Class;
+    
+    if (!name || typeof name !== 'string') {
+        throw new Error('invalid [name] string parameter');
+    }
     
     if (config instanceof Array) {
         Class = extend(Workflow.prototype, DEFINE(config));
-        return Class;
+        list[name] = Class;
+    }
+    else {
+        throw new Error('invalid [config] array parameter');
     }
     
-    return void(0);
+    return EXPORTS;
     
 }
 
+function instantiate(name) {
+    var list = WORKFLOWS;
+    if (Object.prototype.hasOwnProperty.call(list, name)) {
+        return new (list[name])();
+    }
+    return void(0);
+}
 
 function extend(Superinstance, definition) {
     var E = empty,
@@ -40,9 +58,9 @@ function extend(Superinstance, definition) {
     E.prototype = Superinstance;
     Workflow.prototype = Prototype = new E();
     
-    Prototype.$$guard = {};
-    Prototype.$$callback = {};
-    Prototype.$$reduce = {};
+    allMethods.$$guard = {};
+    allMethods.$$callback = {};
+    allMethods.$$reduce = {};
     
     // create methods
     for (name in transitions) {
@@ -51,7 +69,7 @@ function extend(Superinstance, definition) {
             methodInput = item.input;
             methodId = ':' + methodInput;
             
-            bootstrapTransition(Prototype, definition, item);
+            bootstrapTransition(allMethods, definition, item);
             
             if (!(methodId in methodIndex)) {
                 
@@ -73,6 +91,8 @@ function extend(Superinstance, definition) {
     Prototype.valueOf = function () {
         return definition;
     };
+    
+    allMethods = methodIndex = null;
     
     return Workflow;
 }
@@ -119,9 +139,9 @@ function createMethod(action, all) {
     return function () {
         var me = this,
             iterator = me.iterator,
-            guards = me.$$guard,
-            callbacks = me.$$callback,
-            reducers = me.$$reduce,
+            guards = all.$$guard,
+            callbacks = all.$$callback,
+            reducers = all.$$reduce,
             input = action,
             next = iterator.lookup(input),
             promise = null,
@@ -200,4 +220,5 @@ Workflow.prototype = {
 
 
 
-module.exports = create;
+module.exports = EXPORTS;
+EXPORTS.define = define;
