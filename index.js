@@ -12,10 +12,7 @@ var DEFINE = require('./define.js');
 //console.log(require('util').inspect(DEFINE.workflow().constructor.prototype, { showHidden: true }));
 //
 
-console.log(
-DEFINE.workflow().
-        name('createForm').
-            describe('stupid form'));
+
 
 
 

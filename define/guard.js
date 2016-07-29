@@ -2,8 +2,14 @@
 
 require('./symbol.js').register('guard', {
     
-    initialize: function () {
-        this.config.callback = null;
+    configure: function (config) {
+        config.callback = null;
+    },
+    
+    initialize: function (callback) {
+        if (callback) {
+            this.callback(callback);
+        }
     },
     
     callback: function (callback) {

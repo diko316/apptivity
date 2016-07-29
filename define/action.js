@@ -1,13 +1,13 @@
 'use strict';
 
-var symbol = require('./symbol.js')
+var SYMBOL = require('./symbol.js');
 
-symbol.register('action', {
+SYMBOL.register('action', {
     
     '@extend': 'guard',
     
-    initialize: function () {
-        this.config.guard = null;
+    configure: function (config) {
+        config.guard = null;
     },
     
     guard: function (name, callback) {

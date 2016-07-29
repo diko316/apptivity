@@ -11,19 +11,27 @@ global.use = function (id) {
 };
 
 // preload bluebird (very slow to load)
-require('bluebird');
+//require('bluebird');
+//
+//describe('fsm API',
+//    function () {
+//        
+//        describe('fsm.define(config:array)',
+//            function () {
+//                require('./fsm/define.js');
+//            });
+//        
+//        describe('fsm.create(config:array)',
+//            function () {
+//                require('./fsm/create.js');
+//            });
+//        
+//    });
 
-describe('fsm API',
+
+describe('define API',
     function () {
         
-        describe('fsm.define(config:array)',
-            function () {
-                require('./fsm/define.js');
-            });
-        
-        describe('fsm.create(config:array)',
-            function () {
-                require('./fsm/create.js');
-            });
-        
+        require('./define/index.js');
+
     });
