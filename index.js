@@ -4,7 +4,7 @@
 //require('./fsm.js');
 
 
-var DEFINE = require('./define.js');
+require('./define/index.js');
 
 
 //console.log('workflow ', DEFINE.workflow());

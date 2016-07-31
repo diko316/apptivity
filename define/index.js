@@ -1,0 +1,22 @@
+'use strict';
+
+var DEFINITION = require('./definition.js');
+
+
+
+DEFINITION.
+    register(require('./config/action.js')).
+    register(require('./config/describe.js')).
+    register(require('./config/handler.js')).
+    register(require('./config/guard.js')).
+    register(require('./config/condition.js')).
+    register(require('./config/fork.js'));
+    
+    
+console.log(
+    DEFINITION('activity').
+        action('create').
+            describe('this is a test').
+            handler(function () {
+                console.log('handler');
+            }));
