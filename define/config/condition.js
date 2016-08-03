@@ -13,40 +13,54 @@ module.exports = [
             list = Array.prototype.slice.call(arguments, 1),
             l = list.length,
             c = -1,
-            entries = [],
-            el = 0,
+            choices = [],
             actions = config.actions,
-            current = config.current;
+            current = config.current,
+            last = config.lastAction,
+            fsm = config.fsm,
+            state = null;
             
-        var definition, id;
+        var definition, id, name;
         
         for (; l--;) {
             definition = list[++c];
             if (!(definition instanceof Definition)) {
                 throw new Error('invalid [definition] parameter');
             }
-            entries[el++] = definition;
+            choices[c] = definition.finalize();
+            name = definition.config.name;
+            
+            // link
+            if (state) {
+                fsm.link(current, name, state);
+            }
+            else {
+                state = fsm.link(current, name);
+            }
+            
         }
         
-        id = 'condition' + (++CONDITION_ID_GEN);
-        
-        // concatenate
-        if (current) {
-            current.next = id;
+        if (!state) {
+            throw new Error("There is no defined condition to process");
         }
-        // create start action
+        
+        config.current = state;
+        name = 'condition' + (++CONDITION_ID_GEN);
+        if (last) {
+            last.next = name;
+        }
         else {
-            config.start = id;
+            config.start = name;
         }
+        id = current + ' > ' + name;
         
-        config.end = id;
-        
-        actions[id] = config.current = {
-            type: 'condition',
-            name: id,
+        actions[id] = config.lastAction = {
+            type: 'choice',
+            route: id,
+            name: name,
+            options: choices,
             next: null
         };
-        
         
     }
 ];

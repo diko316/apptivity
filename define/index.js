@@ -10,13 +10,13 @@ DEFINITION.
     register(require('./config/handler.js')).
     register(require('./config/guard.js')).
     register(require('./config/condition.js')).
-    register(require('./config/fork.js'));
+    register(require('./config/fork.js')).
+    register(require('./config/finalize.js'));
     
+module.exports = DEFINITION;
     
-console.log(
-    DEFINITION('activity').
-        action('create').
-            describe('this is a test').
-            handler(function () {
-                console.log('handler');
-            }));
+
+            
+//console.log(workflow.config.fsm);
+//console.log(workflow);
+            

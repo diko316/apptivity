@@ -3,6 +3,7 @@
 var FORK_ID_GEN = 0;
 
 module.exports = [
+    
     'fork',
     
     null,
@@ -13,40 +14,54 @@ module.exports = [
             list = Array.prototype.slice.call(arguments, 1),
             l = list.length,
             c = -1,
-            entries = [],
-            el = 0,
+            choices = [],
             actions = config.actions,
-            current = config.current;
+            current = config.current,
+            last = config.lastAction,
+            fsm = config.fsm,
+            state = null;
             
-        var definition, id;
+        var definition, id, name;
         
         for (; l--;) {
             definition = list[++c];
             if (!(definition instanceof Definition)) {
                 throw new Error('invalid [definition] parameter');
             }
-            entries[el++] = definition;
+            choices[c] = definition.finalize();
+            name = definition.config.name;
+            
+            // link
+            if (state) {
+                fsm.link(current, name, state);
+            }
+            else {
+                state = fsm.link(current, name);
+            }
+            
         }
         
-        id = 'forked' + (++FORK_ID_GEN);
-        
-        // concatenate
-        if (current) {
-            current.next = id;
+        if (!state) {
+            throw new Error("There is no defined process to fork");
         }
-        // create start action
+        
+        config.current = state;
+        name = 'fork' + (++FORK_ID_GEN);
+        if (last) {
+            last.next = name;
+        }
         else {
-            config.start = id;
+            config.start = name;
         }
+        id = current + ' > ' + name;
         
-        config.end = id;
-        
-        actions[id] = config.current = {
+        actions[id] = config.lastAction = {
             type: 'fork',
-            name: id,
+            route: id,
+            name: name,
+            options: choices,
             next: null
         };
-        
         
     }
 ];

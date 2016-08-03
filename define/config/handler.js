@@ -6,7 +6,7 @@ module.exports = [
     null,
     
     function (config, handler) {
-        var current = config.current;
+        var current = config.lastAction;
         
         if (!current) {
             throw new Error('no activity to handle');

@@ -2,7 +2,8 @@
 
 var EXPORTS = create,
     WORKFLOWS = {},
-    WORKFLOW_ID_GEN = 0;
+    WORKFLOW_ID_GEN = 0,
+    FSM = require('./fsm');
 
 
 function create(name) {
@@ -12,6 +13,10 @@ function create(name) {
     }
     
     return new Definition(name);    
+}
+
+function is(definition) {
+    return definition instanceof Definition;
 }
 
 
@@ -55,9 +60,15 @@ function register(name, onInitialize, onConfigure) {
     }
     
     Prototype[name] = function () {
-        var args = [this.config];
-        args.push.apply(args, arguments);
-        onConfigure.apply(this, args);
+        var config = this.config;
+        var args;
+        
+        if (!config.finalized) {
+            args = [config];
+            args.push.apply(args, arguments);
+            onConfigure.apply(this, args);
+        }
+        
         return this;
     };
     
@@ -83,10 +94,14 @@ Definition.prototype = {
     config: void(0),
     constructor: Definition,
     initialize: function () {
-        this.config = {};
+        this.config = {
+                fsm: new FSM(),
+                finalized: false
+            };
     }
 };
 
 
 module.exports = EXPORTS;
 EXPORTS.register = register;
+EXPORTS.is = is;
