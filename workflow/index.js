@@ -32,8 +32,17 @@ var workflow = DEFINE('createUser').
                 action('renderToHTML'),
                 
             DEFINE('failedRender').
-                action('doNothing')
-        );
+                action('doNothing'),
+                
+            DEFINE('buang').
+                condition(
+                    DEFINE('buangyes').
+                        action('yesaction'),
+                    DEFINE('buangno').
+                        action('noaction')
+                )
+        ).
+        action('last');
 
 //var iterator = new ITERATOR(workflow);
 //

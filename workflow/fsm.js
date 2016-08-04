@@ -51,52 +51,77 @@ Fsm.prototype = {
             action = config.start,
             option = null;
                 
-        var state, defOption;
+        var state, defOption, config, stop;
         
         
         
         for (; action; ) {
-            
-            console.log('processing ', action.name);
+            // link actions
+            console.log('= ', action.name);
             
             // push to stack and evaluate action later
             defOption = action.options;
-            
             if (defOption) {
-                console.log('push to stack ', action.name);
                 stack = {
-                    config: config,
-                    option: option,
                     action: action,
+                    option: option,
+                    config: config,
                     before: stack
                 };
+                console.log(' +', action.name);
                 option = defOption;
                 config = option.definition.config;
                 action = config.start;
+                console.log(' >> ', config.name);
                 continue;
             }
             
+            // next
             action = action.next;
             
-            // pop if nothing left
+            // no more action
             if (!action) {
                 
-                // go to next option
+                // iterate option
                 if (option && option.next) {
                     option = option.next;
                     config = option.definition.config;
                     action = config.start;
+                    // link
+                    console.log('>> ', config.name);
+                    continue;
                 }
-                // pop option stack
-                else if (stack) {
-                    console.log('pop stack from: ', stack.action.name);
-                    option = stack.option;
-                    config = stack.config;
-                    action = stack.action.next;
-                    stack = stack.before;
+                
+                // pop stack until there's action
+                for (stop = false; stack && !stop; stack = stack.before) {
+                    
+                    // reduce
+                    console.log(' -', stack.action.name);
+                    
+                    
+                    // iterate action
+                    action = stack.action;
+                    if (action.next) {
+                        option = stack.option;
+                        config = stack.config;
+                        action = action.next;
+                        stop = true;
+                    }
+                    else {
+                        // iterate options
+                        option = stack.option;
+                        if (option && option.next) {
+                            option = option.next;
+                            config = option.definition.config;
+                            action = config.start;
+                            stop = true;
+                        }
+                    }
+                    
                 }
                 
             }
+            
         }
 
     }
