@@ -8,7 +8,7 @@ module.exports = [
     
     function (config) {
         var list = Array.prototype.slice.call(arguments, 1),
-            current = config.lastAction;
+            current = config.end;
         var c, l, dl, item, descriptions;
         
         if (!current) {

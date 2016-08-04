@@ -2,6 +2,7 @@
 
 var EXPORTS = instantiate,
     DEFINE = require('../define/index.js'),
+    FSM = require('./fsm.js'),
     ITERATOR = require('./iterator.js');
 
 function instantiate() {
@@ -32,24 +33,22 @@ var workflow = DEFINE('createUser').
                 
             DEFINE('failedRender').
                 action('doNothing')
-        ).
-        
-        finalize();
+        );
 
-var iterator = new ITERATOR(workflow);
-
-
+//var iterator = new ITERATOR(workflow);
+//
+//
+////console.log(iterator.lookup());
+//
 //console.log(iterator.lookup());
-
-console.log(iterator.lookup());
-iterator.next();
-
-console.log(iterator.lookup());
-iterator.next();
-
-console.log(iterator.lookup());
-iterator.next();
+//iterator.next();
+//
+//console.log(iterator.lookup());
+//iterator.next();
+//
+//console.log(iterator.lookup());
+//iterator.next();
 
 
 
-console.log('workflow ', workflow.config.fsm);
+console.log('workflow ', FSM(workflow));

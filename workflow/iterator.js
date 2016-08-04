@@ -1,5 +1,8 @@
 'use strict';
 
+
+
+
 function Iterator(definition) {
     var config = definition.config;
     
@@ -33,8 +36,7 @@ Iterator.prototype = {
             action = config.actions[state + ' > ' + current],
             transition = fsm.states[state],
             nextState = transition[':' + current];
-            
-            
+
         
         return {
             end: nextState in ends ?

@@ -3,42 +3,28 @@
 module.exports = [
     'action',
     
-    function () {
-        var config = this.config;
-        
-        config.actions = {};
-        config.current = config.fsm.start;
-        config.start = null;
-        config.lastAction = null;
-    },
+    null,
     
     function (config, name) {
-        var actions = config.actions,
-            current = config.current,
-            last = config.lastAction,
-            fsm = config.fsm;
-            
-        var state, id;
+        var last = config.end;
+        var action;
         
         if (!name || typeof name !== 'string') {
             throw new Error('invalid [name] parameter');
         }
-
-        id = current + ' > ' + name;
-        if (last) {
-            last.next = name;
-        }
-        else {
-            config.start = name;
-        }
-        config.current = state = fsm.link(current, name);
         
-        actions[id] = config.lastAction = {
-            type: 'sequence',
-            route: id,
+        config.end = action = {
+            type: 'action',
             name: name,
             next: null
         };
+        
+        if (last) {
+            last.next = action;
+        }
+        else {
+            config.start = action;
+        }
 
     }
 ]; 

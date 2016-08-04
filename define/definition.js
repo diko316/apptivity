@@ -2,8 +2,7 @@
 
 var EXPORTS = create,
     WORKFLOWS = {},
-    WORKFLOW_ID_GEN = 0,
-    FSM = require('./fsm');
+    WORKFLOW_ID_GEN = 0;
 
 
 function create(name) {
@@ -95,8 +94,8 @@ Definition.prototype = {
     constructor: Definition,
     initialize: function () {
         this.config = {
-                fsm: new FSM(),
-                finalized: false
+                start: null,
+                end: null
             };
     }
 };

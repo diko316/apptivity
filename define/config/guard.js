@@ -10,7 +10,7 @@ module.exports = [
     null,
     
     function (config, name, handler) {
-        var current = config.lastAction;
+        var current = config.end;
         var m;
         
         if (!current) {
