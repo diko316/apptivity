@@ -29,7 +29,7 @@ var workflow = DEFINE('createUser').
             
         condition(
             DEFINE('renderedToHTML').
-                action('renderToHTML'),
+                action('renderDom'),
                 
             DEFINE('failedRender').
                 action('doNothing'),

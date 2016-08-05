@@ -21,7 +21,7 @@ function create(definition) {
 
 
 function Fsm(definition) {
-    var start = 'state' + (++STATE_GEN_ID),
+    var start = this.generateState(),
         states = {};
         
     states[start] = {};
@@ -30,6 +30,7 @@ function Fsm(definition) {
     this.start = start;
     this.states = states;
     this.ends = {};
+    this.reduce = {};
     
     this.populateStates(definition);
 }
@@ -39,40 +40,82 @@ Fsm.prototype = {
     start: void(0),
     states: void(0),
     ends: void(0),
+    reduce: void(0),
+    
+    generateState: function () {
+        return 'state' + (++STATE_GEN_ID);
+    },
     
     populateStates: function (definition) {
         
         var states = this.states,
             ends = this.ends,
             actions = this.actions,
-            start = this.start,
+            state = this.start,
+            reducers = this.reduce,
+            anchor = state,
             stack = null,
             config = definition.config,
             action = config.start,
-            option = null;
+            option = null,
+            reduceState = null,
+            reduceName = null;
                 
-        var state, defOption, config, stop;
+        var name, id, stateObject, defOption, stop, transition;
         
         
         
         for (; action; ) {
+            
+            // register
+            stateObject = states[state];
+            name = action.name;
+            id = ':' + name;
+            transition = state + ' > ' + name;
+            
             // link actions
-            console.log('= ', action.name);
+            if (id in stateObject) {
+                state = stateObject[id];
+            }
+            else {
+                state = this.generateState();
+                stateObject[id] = state;
+                states[state] = {};
+            }
+            
+            
+            actions[transition] = action;
+            
+            
+            //console.log('= ', action.name);
             
             // push to stack and evaluate action later
             defOption = action.options;
             if (defOption) {
+                
+                //console.log(' + ', action.name, ', reduce state: ', reduceState);
+                reduceState = this.generateState();
+                states[reduceState] = {};
+                
                 stack = {
                     action: action,
                     option: option,
                     config: config,
+                    state: state,
+                    anchor: anchor,
+                    reduce: reduceState,
+                    reduceName: reduceName,
                     before: stack
                 };
-                console.log(' +', action.name);
+                
+                reduceName = config.name;
+                
                 option = defOption;
                 config = option.definition.config;
                 action = config.start;
-                console.log(' >> ', config.name);
+                anchor = state;
+                
+                //console.log(' >> ', config.name);
                 continue;
             }
             
@@ -87,8 +130,13 @@ Fsm.prototype = {
                     option = option.next;
                     config = option.definition.config;
                     action = config.start;
+                    
+                    // reduce!
+                    reducers[state] = [reduceState, reduceName];
+                    
+                    state = anchor;
                     // link
-                    console.log('>> ', config.name);
+                    //console.log('>> ', config.name);
                     continue;
                 }
                 
@@ -96,8 +144,7 @@ Fsm.prototype = {
                 for (stop = false; stack && !stop; stack = stack.before) {
                     
                     // reduce
-                    console.log(' -', stack.action.name);
-                    
+                    //console.log(' -', stack.action.name);
                     
                     // iterate action
                     action = stack.action;
@@ -105,6 +152,14 @@ Fsm.prototype = {
                         option = stack.option;
                         config = stack.config;
                         action = action.next;
+                        
+                        // reduce!
+                        reducers[state] = [reduceState, reduceName];
+                        
+                        reduceState = stack.reduce;
+                        reduceName = stack.reduceName;
+                        anchor = stack.anchor;
+                        state = reduceState;
                         stop = true;
                     }
                     else {
@@ -114,6 +169,11 @@ Fsm.prototype = {
                             option = option.next;
                             config = option.definition.config;
                             action = config.start;
+                            
+                            // reduce!
+                            reducers[state] = [reduceState, reduceName];
+                            
+                            state = anchor;
                             stop = true;
                         }
                     }
