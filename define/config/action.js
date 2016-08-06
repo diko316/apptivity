@@ -1,5 +1,7 @@
 'use strict';
 
+var ACTION_ID_GEN = 0;
+
 module.exports = [
     'action',
     
@@ -15,6 +17,7 @@ module.exports = [
         
         config.end = action = {
             type: 'action',
+            id: 'action' + (++ACTION_ID_GEN),
             name: name,
             next: null
         };

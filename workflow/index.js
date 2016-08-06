@@ -32,7 +32,7 @@ var workflow = DEFINE('createUser').
                 action('renderDom'),
                 
             DEFINE('failedRender').
-                action('doNothing'),
+                action('renderDom'),
                 
             DEFINE('buang').
                 condition(

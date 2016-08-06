@@ -17,7 +17,7 @@ module.exports = [
             lastOptions = null,
             last = config.end;
             
-        var definition, action, option;
+        var definition, action, option, id;
         
         for (; l--;) {
             definition = list[++c];
@@ -44,10 +44,11 @@ module.exports = [
         if (!options) {
             throw new Error("There is no defined condition to process");
         }
-        
+        id = 'condition' + (++CONDITION_ID_GEN);
         config.end = action = {
             type: 'condition',
-            name: 'condition' + (++CONDITION_ID_GEN),
+            id: id,
+            name: id,
             options: options,
             next: null
         };
