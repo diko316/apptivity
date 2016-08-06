@@ -22,14 +22,18 @@ function create(definition) {
 
 function Fsm(definition) {
     var start = this.generateState(),
+        map = {},
         states = {};
         
+    map[start] = {};
     states[start] = {};
     
     this.actions = {};
     this.start = start;
-    this.states = states;
+    this.map = map;
+    this.states = {};
     this.ends = {};
+    this.pushStates = {};
     this.reduce = {};
     
     this.populateStates(definition);
@@ -37,8 +41,9 @@ function Fsm(definition) {
 
 Fsm.prototype = {
     
-    start: void(0),
+    map: void(0),
     states: void(0),
+    start: void(0),
     ends: void(0),
     reduce: void(0),
     
@@ -49,6 +54,7 @@ Fsm.prototype = {
     populateStates: function (definition) {
         
         var states = this.states,
+            map = this.map,
             ends = this.ends,
             actions = this.actions,
             state = this.start,
@@ -58,33 +64,34 @@ Fsm.prototype = {
             config = definition.config,
             action = config.start,
             option = null,
-            reduceState = null,
-            reduceName = null;
+            pushState = null,
+            popState = null,
+            beforeState = null;
                 
         var name, id, stateObject, defOption, stop, transition;
-        
-        
         
         for (; action; ) {
             
             // register
-            stateObject = states[state];
+            transition = map[state];
             name = action.name;
             id = ':' + name;
-            transition = state + ' > ' + name;
+            beforeState = state;
             
             // link actions
-            if (id in stateObject) {
-                state = stateObject[id];
+            if (id in transition) {
+                state = transition[id];
             }
             else {
                 state = this.generateState();
-                stateObject[id] = state;
+                transition[id] = state;
+                map[state] = {};
                 states[state] = {};
             }
             
             
-            actions[transition] = action;
+            actions[state + ' > ' + name] = action;
+            stateObject = states[state];
             
             
             //console.log('= ', action.name);
@@ -94,8 +101,10 @@ Fsm.prototype = {
             if (defOption) {
                 
                 //console.log(' + ', action.name, ', reduce state: ', reduceState);
-                reduceState = this.generateState();
-                states[reduceState] = {};
+                pushState = this.generateState();
+                map[pushState] = {};
+                
+                popState = state;
                 
                 stack = {
                     action: action,
@@ -103,20 +112,19 @@ Fsm.prototype = {
                     config: config,
                     state: state,
                     anchor: anchor,
-                    reduce: reduceState,
-                    reduceName: reduceName,
                     before: stack
                 };
-                
-                reduceName = config.name;
                 
                 option = defOption;
                 config = option.definition.config;
                 action = config.start;
-                anchor = state;
+                anchor = state = pushState;
                 
                 //console.log(' >> ', config.name);
                 continue;
+            }
+            else {
+                console.log();
             }
             
             // next
@@ -132,7 +140,8 @@ Fsm.prototype = {
                     action = config.start;
                     
                     // reduce!
-                    reducers[state] = [reduceState, reduceName];
+                    console.log('next option state: ', popState);
+                    //reducers[state] = [reduceState, reduceName];
                     
                     state = anchor;
                     // link
@@ -154,12 +163,12 @@ Fsm.prototype = {
                         action = action.next;
                         
                         // reduce!
-                        reducers[state] = [reduceState, reduceName];
+                        //reducers[state] = [reduceState, reduceName];
                         
-                        reduceState = stack.reduce;
-                        reduceName = stack.reduceName;
+                        //reduceState = stack.reduce;
+                        //reduceName = stack.reduceName;
                         anchor = stack.anchor;
-                        state = reduceState;
+                        state = stack.state;
                         stop = true;
                     }
                     else {
@@ -171,7 +180,7 @@ Fsm.prototype = {
                             action = config.start;
                             
                             // reduce!
-                            reducers[state] = [reduceState, reduceName];
+                            //reducers[state] = [reduceState, reduceName];
                             
                             state = anchor;
                             stop = true;
@@ -187,5 +196,12 @@ Fsm.prototype = {
     }
     
 };
+
+
+
+
+
+
+
 
 module.exports = EXPORTS;
