@@ -13,7 +13,7 @@ function create(definition) {
     if (id in list) {
         return list[id];
     }
-    console.log('create!');
+    
     list[id] = fsm = new Fsm(definition);
     return fsm;
     
@@ -21,20 +21,14 @@ function create(definition) {
 
 
 function Fsm(definition) {
-    var start = this.generateState(),
-        map = {},
-        states = {};
-        
-    map[start] = {};
-    states[start] = {};
+    
+    this.map = {};
+    this.start = this.generateState();
+    this.reduce = {};
+    this.ends = {};
     
     this.actions = {};
-    this.start = start;
-    this.map = map;
-    this.states = {};
-    this.ends = {};
-    this.pushStates = {};
-    this.reduce = {};
+    this.walkthrough = {};
     
     this.populateStates(definition);
 }
@@ -42,19 +36,21 @@ function Fsm(definition) {
 Fsm.prototype = {
     
     map: void(0),
-    states: void(0),
     start: void(0),
     ends: void(0),
     reduce: void(0),
+    actions: void(0),
+    walkthrough: void(0),
     
     generateState: function () {
-        return 'state' + (++STATE_GEN_ID);
+        var id = 'state' + (++STATE_GEN_ID);
+        this.map[id] = {};
+        return id;
     },
     
     populateStates: function (definition) {
         
-        var states = this.states,
-            map = this.map,
+        var map = this.map,
             ends = this.ends,
             actions = this.actions,
             state = this.start,
@@ -64,62 +60,58 @@ Fsm.prototype = {
             config = definition.config,
             action = config.start,
             option = null,
-            pushState = null,
-            popState = null,
-            nextState = null;
+            endState = null,
+            mainAction = null;
                 
-        var name, id, stateObject, defOption, stop, transition;
+        var id, defOption, stop, transition, descriptions;
         
         for (; action; ) {
             
-            // register
+            // link action
             transition = map[state];
             id = action.id;
-            
-            // link actions
             if (id in transition) {
-                nextState = transition[id];
-                
+                state = transition[id];
             }
             else {
-                nextState = this.generateState();
-                transition[id] = nextState;
-                map[nextState] = {};
-
+                state = this.generateState();
+                transition[id] = state;
             }
             
-            state = nextState;
+            // register
+            descriptions = action.descriptions;
+            
+            actions[id] = action;
+            
+            defOption = action.options;
             
             // push to stack and evaluate action later
-            defOption = action.options;
             if (defOption) {
-                
-                //console.log(' + ', action.name, ', reduce state: ', reduceState);
                 
                 stack = {
                     action: action,
                     option: option,
                     config: config,
-                    state: state,
-                    anchor: anchor,
                     
-                    pushState: pushState,
-                    popState: popState,
+                    anchor: anchor,
+                    state: endState,
+                    
+                    mainAction: mainAction,
+                    
                     before: stack
                 };
                 
-                pushState = this.generateState();
-                map[pushState] = {};
-                
-                popState = state;
+                mainAction = actions[action.id];
                 
                 option = defOption;
                 config = option.definition.config;
                 action = config.start;
-                anchor = state = pushState;
+                anchor = state;
                 
-                //console.log(' >> ', config.name);
+                endState = this.generateState();
+                
                 continue;
+                
             }
             
             // next
@@ -131,62 +123,58 @@ Fsm.prototype = {
                 // iterate option
                 if (option && option.next) {
                     option = option.next;
-                    config = option.definition.config;
-                    action = config.start;
+                    action = option.definition.config.start;
                     
-                    // reduce!
-                    reducers[state] = popState;
+                    reducers[state] = [endState, mainAction.name];
                     
                     state = anchor;
+
                     // link
-                    //console.log('>> ', config.name);
                     continue;
                 }
                 
                 // pop stack until there's action
                 for (stop = false; stack && !stop; stack = stack.before) {
                     
-                    // reduce
-                    //console.log(' -', stack.action.name);
-                    
                     // iterate action
-                    action = stack.action;
-                    if (action.next) {
-                        option = stack.option;
-                        config = stack.config;
-                        action = action.next;
+                    action = stack.action.next;
+                    option = stack.option;
+                    
+                    if (option && option.next) {
+                        option = option.next;
+                        action = option.definition.config.start;
                         
-                        // reduce!
-                        reducers[state] = popState;
+                        reducers[state] = [endState, mainAction.name];
                         
-                        pushState = stack.pushState;
-                        popState = stack.popState;
-                        
-                        anchor = stack.anchor;
-                        state = stack.state;
+                        state = anchor;
+
                         stop = true;
+                        
                     }
                     else {
-                        // iterate options
-                        option = stack.option;
-                        if (option && option.next) {
-                            option = option.next;
-                            config = option.definition.config;
-                            action = config.start;
-                            
-                            // reduce!
-                            reducers[state] = popState;
-                            
-                            state = anchor;
+                        
+                        anchor = stack.anchor;
+                        reducers[state] = [endState, mainAction.name];
+                        
+                        config = stack.config;
+                        state = endState;
+                        endState = stack.state;
+                        mainAction = stack.mainAction;
+
+                        if (action) {
                             stop = true;
                         }
                     }
+                    
                     
                 }
                 
             }
             
         }
+        
+        ends[state] = true;
+        console.log('last state: ', state);
 
     }
     
