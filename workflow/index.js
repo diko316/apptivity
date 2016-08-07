@@ -40,8 +40,8 @@ var workflow = DEFINE('createUser').
                         action('yesaction'),
                     DEFINE('buangno').
                         action('noaction')
-                )
-                //action('finalBuang')
+                ).
+                action('finalBuang')
         ).
         action('last');
 

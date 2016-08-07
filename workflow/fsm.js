@@ -63,7 +63,7 @@ Fsm.prototype = {
             endState = null,
             mainAction = null;
                 
-        var id, defOption, stop, transition, descriptions;
+        var id, defOption, transition, descriptions;
         
         for (; action; ) {
             
@@ -89,7 +89,7 @@ Fsm.prototype = {
             if (defOption) {
                 
                 stack = {
-                    action: action,
+                    action: action.next,
                     option: option,
                     config: config,
                     
@@ -101,7 +101,7 @@ Fsm.prototype = {
                     before: stack
                 };
                 
-                mainAction = actions[action.id];
+                mainAction = actions[id];
                 
                 option = defOption;
                 config = option.definition.config;
@@ -117,8 +117,7 @@ Fsm.prototype = {
             // next
             action = action.next;
             
-            // no more action
-            if (!action) {
+            for (; !action; ) {
                 
                 // iterate option
                 if (option && option.next) {
@@ -128,46 +127,29 @@ Fsm.prototype = {
                     reducers[state] = [endState, mainAction.name];
                     
                     state = anchor;
-
-                    // link
-                    continue;
+                    
+                    break;
+            
                 }
                 
-                // pop stack until there's action
-                for (stop = false; stack && !stop; stack = stack.before) {
-                    
-                    // iterate action
-                    action = stack.action.next;
-                    option = stack.option;
-                    
-                    if (option && option.next) {
-                        option = option.next;
-                        action = option.definition.config.start;
-                        
-                        reducers[state] = [endState, mainAction.name];
-                        
-                        state = anchor;
-
-                        stop = true;
-                        
-                    }
-                    else {
-                        
-                        anchor = stack.anchor;
-                        reducers[state] = [endState, mainAction.name];
-                        
-                        config = stack.config;
-                        state = endState;
-                        endState = stack.state;
-                        mainAction = stack.mainAction;
-
-                        if (action) {
-                            stop = true;
-                        }
-                    }
-                    
-                    
+                // no more stack
+                else if (!stack) {
+                    break;
                 }
+                
+                // iterate stack
+                action = stack.action;
+                option = stack.option;
+                
+                anchor = stack.anchor;
+                reducers[state] = [endState, mainAction.name];
+                
+                config = stack.config;
+                state = endState;
+                endState = stack.state;
+                mainAction = stack.mainAction;
+                
+                stack = stack.before;
                 
             }
             
