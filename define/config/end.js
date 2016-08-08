@@ -13,6 +13,7 @@ module.exports = [
             action = END;
             
         config.end = action;
+        config.finalized = true;
         
         if (last) {
             last.next = action;

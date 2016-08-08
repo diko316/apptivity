@@ -17,8 +17,11 @@ function create(name) {
 }
 
 function Activity(name) {
-    this.id = 'activity' + (++ACTIVITY_GEN_ID);
+    var id = 'activity' + (++ACTIVITY_GEN_ID);
+    ACTIVITIES[id] = this;
+    this.id = id;
     this.name = name;
+    
 }
 
 

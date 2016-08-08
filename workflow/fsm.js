@@ -25,7 +25,6 @@ function Fsm(definition) {
     
     this.map = {};
     this.start = this.generateState();
-    this.reduce = {};
     this.ends = {};
     
     this.states = {};
@@ -38,7 +37,7 @@ Fsm.prototype = {
     map: void(0),
     start: void(0),
     ends: void(0),
-    reduce: void(0),
+    states: void(0),
     
     generateState: function () {
         var id = 'state' + (++STATE_GEN_ID);
@@ -51,7 +50,6 @@ Fsm.prototype = {
         var map = this.map,
             ends = this.ends,
             state = this.start,
-            reducers = this.reduce,
             states = this.states,
             anchor = state,
             stack = null,
@@ -59,10 +57,11 @@ Fsm.prototype = {
             action = config.start,
             option = null,
             endState = null,
-            mainAction = null,
+            parentAction = null,
+            parentState = null,
             stateBefore = null;
                 
-        var id, defOption, transition;
+        var id, defOption, transition, reference;
         
         for (; action; ) {
             
@@ -78,7 +77,27 @@ Fsm.prototype = {
                 transition[id] = state;
             }
             
+            // register sudden death/end state
+            if (action.type === 'end') {
+                ends[state] = true;
+            }
+            
             defOption = action.options;
+            
+            // register option
+            if (stateBefore === anchor && parentState) {
+                
+                reference = states[parentState].options;
+                reference[reference.length] = action.id;
+                
+            }
+            // register link
+            else if (!defOption) {
+                states[stateBefore] = {
+                    type: action.type,
+                    action: action.id
+                };
+            }
             
             // push to stack and evaluate action later
             if (defOption) {
@@ -91,18 +110,21 @@ Fsm.prototype = {
                     anchor: anchor,
                     state: endState,
                     
-                    mainAction: mainAction,
+                    parentState: parentState,
+                    parentAction: parentAction,
                     
                     before: stack
                 };
                 
-                mainAction = action;
+                parentState = stateBefore;
+                parentAction = action;
+                
                 states[stateBefore] = {
                     type: action.type,
-                    options: state
+                    action: action.id,
+                    target: state,
+                    options: []
                 };
-                
-                console.log(stateBefore, ' > ', action.type + ':' + action.name, ' = ', state);
                 
                 option = defOption;
                 config = option.definition.config;
@@ -113,14 +135,6 @@ Fsm.prototype = {
                 
                 continue;
                 
-            }
-            else if (stateBefore in states) {
-                
-                console.log('option: ', stateBefore, '>', action.type + ':' + action.name, ' = ', state);
-            }
-            else {
-                
-                console.log('link: ', stateBefore, '>', action.type + ':' + action.name, ' = ', state);
             }
             
             // next
@@ -133,7 +147,12 @@ Fsm.prototype = {
                     option = option.next;
                     action = option.definition.config.start;
                     
-                    reducers[state] = [endState, mainAction.id];
+                    states[state] = {
+                        type: 'reduce',
+                        action: parentAction.id,
+                        target: endState
+                    };
+                    
                     
                     state = anchor;
                     
@@ -151,12 +170,17 @@ Fsm.prototype = {
                 option = stack.option;
                 
                 anchor = stack.anchor;
-                reducers[state] = [endState, mainAction.id];
+                states[state] = {
+                        type: 'reduce',
+                        action: parentAction.id,
+                        target: endState
+                    };
                 
                 config = stack.config;
                 state = endState;
                 endState = stack.state;
-                mainAction = stack.mainAction;
+                parentAction = stack.parentAction;
+                parentState = stack.parentState;
                 stack = stack.before;
                 
             }
@@ -167,15 +191,22 @@ Fsm.prototype = {
 
     },
     
-    lookup: function (currentState, actionId) {
-        var map = this.map;
-        var transition;
+    lookup: function (state) {
+        var map = this.map,
+            states = this.states;
+            
+        var activity, action;
         
-        if (currentState in map) {
-            transition = map[currentState];
-            if (actionId in transition) {
-                return transition[actionId];
-            }
+        if (typeof state === 'string' && state in states) {
+            activity = states[state];
+            action = ACTIVITY(activity.action);
+            console.log('action id ', activity.action, action);
+            return {
+                state: map[state][action.id],
+                activity: activity,
+                action: action
+            };
+            //console.log('transition: ', transition);
         }
         return void(0);
     }

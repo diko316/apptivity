@@ -60,7 +60,11 @@ var workflow = DEFINE('createUser').
 //iterator.next();
 
 
+var fsm = FSM(workflow);
 
 console.log('workflow ',
-    require('util').inspect(FSM(workflow), { depth: 10, showHidden: true })
+    require('util').inspect(fsm, { depth: 10, showHidden: true })
 );
+
+console.log('lookup: ', fsm.lookup(fsm.start));
+
