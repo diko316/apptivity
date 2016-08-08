@@ -61,4 +61,6 @@ var workflow = DEFINE('createUser').
 
 
 
-console.log('workflow ', FSM(workflow));
+console.log('workflow ',
+    require('util').inspect(FSM(workflow), { depth: 10, showHidden: true })
+);

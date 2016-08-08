@@ -1,15 +1,16 @@
 'use strict';
 
-var ACTIVITY = require('../activity.js');
+var ACTIVITY = require('../activity.js'),
+    END = ACTIVITY.end;
 
 module.exports = [
-    'action',
+    'end',
     
     null,
     
-    function (config, name) {
+    function (config) {
         var last = config.end,
-            action = ACTIVITY.create(name);
+            action = END;
             
         config.end = action;
         
@@ -17,7 +18,8 @@ module.exports = [
             last.next = action;
         }
         else {
-            config.start = action;
+            throw new Error(
+                'workflow has ended prematurely [' + config.name + ']');
         }
 
     }

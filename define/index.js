@@ -10,7 +10,8 @@ DEFINITION.
     register(require('./config/handler.js')).
     register(require('./config/guard.js')).
     register(require('./config/condition.js')).
-    register(require('./config/fork.js'));
+    register(require('./config/fork.js')).
+    register(require('./config/end.js'));
     
 module.exports = DEFINITION;
     

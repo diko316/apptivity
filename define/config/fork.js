@@ -1,6 +1,6 @@
 'use strict';
 
-var FORK_ID_GEN = 0;
+var ACTIVITY = require('../activity.js');
 
 module.exports = [
     
@@ -16,9 +16,10 @@ module.exports = [
             c = -1,
             options = null,
             lastOptions = null,
-            last = config.end;
+            last = config.end,
+            action = ACTIVITY.create('forked');
             
-        var definition, action, option, id;
+        var definition, option;
         
         for (; l--;) {
             definition = list[++c];
@@ -45,14 +46,10 @@ module.exports = [
         if (!options) {
             throw new Error("There is no defined process to fork");
         }
-        id = 'fork' + (++FORK_ID_GEN);
-        config.end = action = {
-            type: 'fork',
-            id: id,
-            name: id,
-            options: options,
-            next: null
-        };
+        
+        action.type = 'fork';
+        action.options = options;
+        config.end = action;
         
         if (last) {
             last.next = action;

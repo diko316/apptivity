@@ -2,7 +2,8 @@
 
 var STATE_GEN_ID = 0,
     FSMS = {},
-    EXPORTS = create;
+    EXPORTS = create,
+    ACTIVITY = require('../define/activity.js');
 
 
 function create(definition) {
@@ -27,8 +28,7 @@ function Fsm(definition) {
     this.reduce = {};
     this.ends = {};
     
-    this.actions = {};
-    this.walkthrough = {};
+    this.states = {};
     
     this.populateStates(definition);
 }
@@ -39,8 +39,6 @@ Fsm.prototype = {
     start: void(0),
     ends: void(0),
     reduce: void(0),
-    actions: void(0),
-    walkthrough: void(0),
     
     generateState: function () {
         var id = 'state' + (++STATE_GEN_ID);
@@ -52,24 +50,26 @@ Fsm.prototype = {
         
         var map = this.map,
             ends = this.ends,
-            actions = this.actions,
             state = this.start,
             reducers = this.reduce,
+            states = this.states,
             anchor = state,
             stack = null,
             config = definition.config,
             action = config.start,
             option = null,
             endState = null,
-            mainAction = null;
+            mainAction = null,
+            stateBefore = null;
                 
-        var id, defOption, transition, descriptions;
+        var id, defOption, transition;
         
         for (; action; ) {
             
             // link action
             transition = map[state];
             id = action.id;
+            stateBefore = state;
             if (id in transition) {
                 state = transition[id];
             }
@@ -77,11 +77,6 @@ Fsm.prototype = {
                 state = this.generateState();
                 transition[id] = state;
             }
-            
-            // register
-            descriptions = action.descriptions;
-            
-            actions[id] = action;
             
             defOption = action.options;
             
@@ -101,7 +96,13 @@ Fsm.prototype = {
                     before: stack
                 };
                 
-                mainAction = actions[id];
+                mainAction = action;
+                states[stateBefore] = {
+                    type: action.type,
+                    options: state
+                };
+                
+                console.log(stateBefore, ' > ', action.type + ':' + action.name, ' = ', state);
                 
                 option = defOption;
                 config = option.definition.config;
@@ -112,6 +113,14 @@ Fsm.prototype = {
                 
                 continue;
                 
+            }
+            else if (stateBefore in states) {
+                
+                console.log('option: ', stateBefore, '>', action.type + ':' + action.name, ' = ', state);
+            }
+            else {
+                
+                console.log('link: ', stateBefore, '>', action.type + ':' + action.name, ' = ', state);
             }
             
             // next
@@ -124,7 +133,7 @@ Fsm.prototype = {
                     option = option.next;
                     action = option.definition.config.start;
                     
-                    reducers[state] = [endState, mainAction.name];
+                    reducers[state] = [endState, mainAction.id];
                     
                     state = anchor;
                     
@@ -142,13 +151,12 @@ Fsm.prototype = {
                 option = stack.option;
                 
                 anchor = stack.anchor;
-                reducers[state] = [endState, mainAction.name];
+                reducers[state] = [endState, mainAction.id];
                 
                 config = stack.config;
                 state = endState;
                 endState = stack.state;
                 mainAction = stack.mainAction;
-                
                 stack = stack.before;
                 
             }
@@ -156,8 +164,20 @@ Fsm.prototype = {
         }
         
         ends[state] = true;
-        console.log('last state: ', state);
 
+    },
+    
+    lookup: function (currentState, actionId) {
+        var map = this.map;
+        var transition;
+        
+        if (currentState in map) {
+            transition = map[currentState];
+            if (actionId in transition) {
+                return transition[actionId];
+            }
+        }
+        return void(0);
     }
     
 };
