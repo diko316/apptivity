@@ -50,25 +50,31 @@ Fsm.prototype = {
         return id;
     },
     
+    
     populateStates: function (definition) {
         
         var map = this.map,
             states = this.states,
             state = this.start,
+            endStates = this.ends,
             anchor = state,
             stack = null,
             config = definition.config,
             action = config.start,
             merge = null,
             stateBefore = null,
+            actionAnchor = null,
             lastAction = null,
             option = null;
                 
         var id, defOption, transition, guard, ends, inState;
         
         for (; action; ) {
-            lastAction = action;
+            
             stateBefore = state;
+            if (!actionAnchor) {
+                actionAnchor = action;
+            }
             
             // create transition
             transition = map[state];
@@ -81,13 +87,13 @@ Fsm.prototype = {
                     action.type + ':'  + action.name);
             }
             else {
+                
+                // new
                 transition[guard] = id;
                 state = id;
                 map[state] = {};
             }
             
-            
-            defOption = action.options;
             inState = stateBefore in states;
             
             // condition option
@@ -95,41 +101,47 @@ Fsm.prototype = {
                 if (inState) {
                     ends = states[stateBefore].options;
                     ends[ends.length] = action.id;
+                    
                 }
                 else {
                     states[stateBefore] = {
                         type: 'options',
                         options: [action.id]
                     };
+
                 }
+                
+                
             }
             else if (inState) {
                 states[stateBefore].target = action.id;
                 
             }
             else {
+                
                 states[stateBefore] = {
-                    type: 'link',
+                    type: action.type,
                     target: action.id
                 };
             }
             
             // push to stack and evaluate action later
+            defOption = action.options;
             if (defOption) {
-                
+
                 stack = {
                     action: action.next,
                     option: option,
                     config: config,
-
+    
                     anchor: action,
                     merge: merge,
-
+                    actionAnchor: actionAnchor,
+    
                     before: stack
                 };
                 
-                //console.log('condition ', )
-
+                
                 // create merge state
                 merge = this.generateState();
                 states[merge] = {
@@ -143,11 +155,17 @@ Fsm.prototype = {
                 option = defOption;
                 config = option.definition.config;
                 action = config.start;
+                actionAnchor = null;
                 
-                
-                
+                if (!stack.before) {
+                    
+                    lastAction = merge;
+                }
                 continue;
                 
+            }
+            else if (!stack) {
+                lastAction = action.id;
             }
             
             // next
@@ -160,16 +178,17 @@ Fsm.prototype = {
                     option = option.next;
                     action = option.definition.config.start;
                     
-                    // reduce
+                    // link to merge state
                     states[state] = {
                         type: 'reduce',
-                        action: anchor.id,
+                        reference: actionAnchor.id,
                         target: merge
                     };
                     ends = states[merge].ends;
                     ends[ends.length] = state;
                     //console.log(state, ' = ', anchor.id);
                     state = anchor.id;
+                    actionAnchor = null;
                     break;
             
                 }
@@ -186,11 +205,11 @@ Fsm.prototype = {
                 // reduce
                 states[state] = {
                     type: 'reduce',
-                    action: anchor.id,
+                    reference: actionAnchor.id,
                     target: merge
                 };
                 
-
+    
                 ends = states[merge].ends;
                 ends[ends.length] = state;
                 state = merge;
@@ -198,33 +217,81 @@ Fsm.prototype = {
                 anchor = stack.anchor;
                 config = stack.config;
                 merge = stack.merge;
+                
+                actionAnchor = stack.actionAnchor;
                 stack = stack.before;
-
+    
             }
             
             // ended
             if (!action) {
-                console.log('state ended ', lastAction);
+                endStates[lastAction] = true;
             }
         }
-
+    
     },
     
     lookup: function (state) {
-        var map = this.map,
-            states = this.states;
+        var states = this.states,
+            mgr = ACTIVITY;
             
         var activity, action;
         
         if (typeof state === 'string' && state in states) {
+            
             activity = states[state];
-            action = ACTIVITY(activity.action);
-            console.log('action id ', activity.action, action);
-            return {
-                state: map[state][action.id],
-                activity: activity,
-                action: action
-            };
+            
+            switch (activity.type) {
+            case 'action':
+                return [
+                    activity.target,
+                    'action',
+                    mgr(activity.target)
+                ];
+            
+            case 'condition':
+                return [
+                    activity.target,
+                    'action',
+                    mgr(activity.target)
+                ];
+            case 'fork':
+                return [
+                    activity.target,
+                    'action',
+                    mgr(activity.target)
+                ];
+            case 'options':
+                action = mgr(state);
+                return [
+                    activity.options,
+                    action.type,
+                    action
+                ];
+            case 'reduce':
+                action = mgr(state);
+                return [
+                    activity.target,
+                    'action',
+                    action
+                ];
+            case 'merge':
+                
+            }
+            
+            
+            
+            console.log(state, '=> ', activity);
+            //
+            //
+            //activity = states[state];
+            //action = ACTIVITY(activity.action);
+            //console.log('action id ', activity.action, action);
+            //return {
+            //    state: map[state][action.id],
+            //    activity: activity,
+            //    action: action
+            //};
             //console.log('transition: ', transition);
         }
         return void(0);
