@@ -22,10 +22,15 @@ function create(definition) {
 
 
 function Fsm(definition) {
+    var start = 'start',
+        map = {};
     
-    this.map = {};
-    this.start = this.generateState();
+    map[start] = {};
+    this.start = start;
     this.ends = {};
+
+    this.map = map;
+    
     
     this.states = {};
     
@@ -40,7 +45,7 @@ Fsm.prototype = {
     states: void(0),
     
     generateState: function () {
-        var id = 'state' + (++STATE_GEN_ID);
+        var id = 'merge' + (++STATE_GEN_ID);
         this.map[id] = {};
         return id;
     },
@@ -48,54 +53,64 @@ Fsm.prototype = {
     populateStates: function (definition) {
         
         var map = this.map,
-            ends = this.ends,
-            state = this.start,
             states = this.states,
+            state = this.start,
             anchor = state,
             stack = null,
             config = definition.config,
             action = config.start,
-            option = null,
-            endState = null,
-            parentAction = null,
-            parentState = null,
-            stateBefore = null;
+            merge = null,
+            stateBefore = null,
+            lastAction = null,
+            option = null;
                 
-        var id, defOption, transition, reference;
+        var id, defOption, transition, guard, ends, inState;
         
         for (; action; ) {
+            lastAction = action;
+            stateBefore = state;
             
-            // link action
+            // create transition
             transition = map[state];
             id = action.id;
-            stateBefore = state;
-            if (id in transition) {
-                state = transition[id];
+            guard = id + '[' + (action.guardName || action.name) + ']';
+            if (guard in transition) {
+                throw new Error(
+                    'state conflict from transition ' +
+                    state + ' to ' +
+                    action.type + ':'  + action.name);
             }
             else {
-                state = this.generateState();
-                transition[id] = state;
+                transition[guard] = id;
+                state = id;
+                map[state] = {};
             }
             
-            // register sudden death/end state
-            if (action.type === 'end') {
-                ends[state] = true;
-            }
             
             defOption = action.options;
+            inState = stateBefore in states;
             
-            // register option
-            if (stateBefore === anchor && parentState) {
-                
-                reference = states[parentState].options;
-                reference[reference.length] = action.id;
+            // condition option
+            if (stateBefore === anchor.id && merge) {
+                if (inState) {
+                    ends = states[stateBefore].options;
+                    ends[ends.length] = action.id;
+                }
+                else {
+                    states[stateBefore] = {
+                        type: 'options',
+                        options: [action.id]
+                    };
+                }
+            }
+            else if (inState) {
+                states[stateBefore].target = action.id;
                 
             }
-            // register link
-            else if (!defOption) {
+            else {
                 states[stateBefore] = {
-                    type: action.type,
-                    action: action.id
+                    type: 'link',
+                    target: action.id
                 };
             }
             
@@ -106,32 +121,30 @@ Fsm.prototype = {
                     action: action.next,
                     option: option,
                     config: config,
-                    
-                    anchor: anchor,
-                    state: endState,
-                    
-                    parentState: parentState,
-                    parentAction: parentAction,
-                    
+
+                    anchor: action,
+                    merge: merge,
+
                     before: stack
                 };
                 
-                parentState = stateBefore;
-                parentAction = action;
-                
-                states[stateBefore] = {
-                    type: action.type,
+                //console.log('condition ', )
+
+                // create merge state
+                merge = this.generateState();
+                states[merge] = {
+                    type: 'merge',
                     action: action.id,
-                    target: state,
-                    options: []
+                    ends: []
                 };
+                state = action.id;
+                anchor = action;
                 
                 option = defOption;
                 config = option.definition.config;
                 action = config.start;
-                anchor = state;
                 
-                endState = this.generateState();
+                
                 
                 continue;
                 
@@ -147,15 +160,16 @@ Fsm.prototype = {
                     option = option.next;
                     action = option.definition.config.start;
                     
+                    // reduce
                     states[state] = {
                         type: 'reduce',
-                        action: parentAction.id,
-                        target: endState
+                        action: anchor.id,
+                        target: merge
                     };
-                    
-                    
-                    state = anchor;
-                    
+                    ends = states[merge].ends;
+                    ends[ends.length] = state;
+                    //console.log(state, ' = ', anchor.id);
+                    state = anchor.id;
                     break;
             
                 }
@@ -169,25 +183,30 @@ Fsm.prototype = {
                 action = stack.action;
                 option = stack.option;
                 
-                anchor = stack.anchor;
+                // reduce
                 states[state] = {
-                        type: 'reduce',
-                        action: parentAction.id,
-                        target: endState
-                    };
+                    type: 'reduce',
+                    action: anchor.id,
+                    target: merge
+                };
                 
+
+                ends = states[merge].ends;
+                ends[ends.length] = state;
+                state = merge;
+                
+                anchor = stack.anchor;
                 config = stack.config;
-                state = endState;
-                endState = stack.state;
-                parentAction = stack.parentAction;
-                parentState = stack.parentState;
+                merge = stack.merge;
                 stack = stack.before;
-                
+
             }
             
+            // ended
+            if (!action) {
+                console.log('state ended ', lastAction);
+            }
         }
-        
-        ends[state] = true;
 
     },
     

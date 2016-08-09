@@ -42,8 +42,9 @@ var workflow = DEFINE('createUser').
                         action('noaction')
                 ).
                 action('finalBuang')
-        ).
-        action('last');
+        );
+        //).
+        //action('last');
 
 //var iterator = new ITERATOR(workflow);
 //
@@ -66,5 +67,5 @@ console.log('workflow ',
     require('util').inspect(fsm, { depth: 10, showHidden: true })
 );
 
-console.log('lookup: ', fsm.lookup(fsm.start));
+//console.log('lookup: ', fsm.lookup(fsm.start));
 
