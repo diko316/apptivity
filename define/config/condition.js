@@ -13,12 +13,17 @@ module.exports = [
             list = Array.prototype.slice.call(arguments, 1),
             l = list.length,
             c = -1,
-            options = null,
-            lastOptions = null,
-            last = config.end,
-            action = ACTIVITY.create('condition');
+            options = [],
+            ol = 0,
+            queue = config.queue,
+            len = queue.length,
+            notempty = len,
+            action = ACTIVITY.create('condition', 'choice');
             
-        var definition, option;
+        var definition;
+        
+        action.options = options;
+        config.last = action;
         
         for (; l--;) {
             definition = list[++c];
@@ -26,35 +31,26 @@ module.exports = [
                 throw new Error('invalid [definition] parameter');
             }
             
-            option = {
-                definition: definition,
-                next: null
-            };
+            options[ol++] = definition;
             
-            if (lastOptions) {
-                lastOptions.next = option;
+            // consecutive
+            queue.push.apply(queue, definition.config.queue);
+            len = queue.length;
+            if (c) {
+                queue[len++] = '|';
             }
-            else {
-                options = option;
-            }
-            
-            lastOptions = option;
             
         }
         
-        if (!options) {
+        queue[len++] = action.id;
+        queue[len++] = '<';
+        
+        if (notempty) {
+            queue[len++] = '.';
+        }
+        
+        if (!c) {
             throw new Error("There is no defined condition to process");
-        }
-        
-        action.type = 'condition';
-        action.options = options;
-        config.end = action;
-        
-        if (last) {
-            last.next = action;
-        }
-        else {
-            config.start = action;
         }
         
     }

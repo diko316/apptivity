@@ -1,6 +1,5 @@
 'use strict';
 
-
 module.exports = [
     'describe',
     
@@ -8,7 +7,7 @@ module.exports = [
     
     function (config) {
         var list = Array.prototype.slice.call(arguments, 1),
-            current = config.end;
+            current = config.last;
         var c, l, dl, item, descriptions;
         
         if (!current) {
@@ -16,6 +15,7 @@ module.exports = [
         }
         
         descriptions = current.descriptions;
+        
         if (!descriptions) {
             descriptions = current.descriptions = [];
         }

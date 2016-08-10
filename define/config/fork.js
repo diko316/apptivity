@@ -3,7 +3,6 @@
 var ACTIVITY = require('../activity.js');
 
 module.exports = [
-    
     'fork',
     
     null,
@@ -14,12 +13,17 @@ module.exports = [
             list = Array.prototype.slice.call(arguments, 1),
             l = list.length,
             c = -1,
-            options = null,
-            lastOptions = null,
-            last = config.end,
-            action = ACTIVITY.create('forked');
+            options = [],
+            ol = 0,
+            queue = config.queue,
+            len = queue.length,
+            notempty = len,
+            action = ACTIVITY.create('fork', 'choice');
             
-        var definition, option;
+        var definition;
+        
+        action.options = options;
+        config.last = action;
         
         for (; l--;) {
             definition = list[++c];
@@ -27,37 +31,27 @@ module.exports = [
                 throw new Error('invalid [definition] parameter');
             }
             
-            option = {
-                definition: definition,
-                next: null
-            };
+            options[ol++] = definition;
             
-            if (lastOptions) {
-                lastOptions.next = option;
-            }
-            else {
-                options = option;
+            // consecutive
+            queue.push.apply(queue, definition.config.queue);
+            len = queue.length;
+            if (c) {
+                queue[len++] = '|';
             }
             
-            lastOptions = option;
-            
         }
         
-        if (!options) {
-            throw new Error("There is no defined process to fork");
+        queue[len++] = action.id;
+        queue[len++] = '<';
+        
+        if (notempty) {
+            queue[len++] = '.';
         }
         
-        action.type = 'fork';
-        action.options = options;
-        config.end = action;
-        
-        if (last) {
-            last.next = action;
+        if (!c) {
+            throw new Error("There is no defined condition to process");
         }
-        else {
-            config.start = action;
-        }
-
         
     }
 ];

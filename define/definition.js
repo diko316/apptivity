@@ -86,6 +86,7 @@ function Definition(name) {
     config = this.config;
     config.name = name;
     config.id = id;
+    config.queue = [];
     
 }
 
@@ -94,8 +95,7 @@ Definition.prototype = {
     constructor: Definition,
     initialize: function () {
         this.config = {
-                start: null,
-                end: null
+                last: null
             };
     }
 };

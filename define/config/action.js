@@ -8,17 +8,17 @@ module.exports = [
     null,
     
     function (config, name) {
-        var last = config.end,
-            action = ACTIVITY.create(name);
-            
-        config.end = action;
+        var queue = config.queue,
+            len = queue.length,
+            action = ACTIVITY.create('action', name),
+            notempty = len;
+
+        queue[len++] = action.id;
         
-        if (last) {
-            last.next = action;
+        if (notempty) {
+            queue[len++] = '.';
         }
-        else {
-            config.start = action;
-        }
+        config.last = action;
 
     }
 ]; 

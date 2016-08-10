@@ -1,12 +1,13 @@
 'use strict';
 
+
 module.exports = [
     'handler',
     
     null,
     
     function (config, handler) {
-        var current = config.end;
+        var current = config.last;
         
         if (!current) {
             throw new Error('no activity to handle');
