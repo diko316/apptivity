@@ -27,7 +27,7 @@ function Fsm(definition) {
 
     this.map = {};
     
-    this.states = {};
+    this.actions = {};
     
     this.populateStates(definition);
 }
@@ -37,7 +37,7 @@ Fsm.prototype = {
     map: void(0),
     start: void(0),
     ends: void(0),
-    states: void(0),
+    actions: void(0),
     
     generateState: function (before, pointer) {
         var id = 'state' + (++STATE_GEN_ID);
@@ -52,6 +52,7 @@ Fsm.prototype = {
     populateStates: function (definition) {
         var map = this.map,
             ends = this.ends,
+            actions = this.actions,
             mgr = ACTIVITY,
             queue = definition.config.queue,
             c = -1,
@@ -79,6 +80,28 @@ Fsm.prototype = {
                                                     monitored,
                                                     right.pointer);
                     right.state = state;
+                    
+                }
+                
+                if (item === '[]') {
+                    activity = left.pointer.item;
+                    state.type = activity.type;
+                    state.action = activity.id;
+                    //console.log('[] ', state.id,
+                    //            ' << ', left.pointer.item.desc,
+                    //            ' < ',
+                    //            right.pointer.item.desc, right.pointer.next &&
+                    //            right.pointer.next.item.id);
+                }
+                else {
+                    
+                    state.type = 'link';
+                    state.action = right.pointer.item.id;
+                    
+                    //console.log('. ', state.id,
+                    //    ' << ', left.pointer.item.desc,
+                    //    ' < ', right.pointer.item.desc, right.pointer.next &&
+                    //    right.pointer.next.item.id);
                 }
                 
                 end = left.end;
@@ -93,16 +116,22 @@ Fsm.prototype = {
                     }
                 }
                 
+                fragment = {
+                    state: left.state,
+                    pointer: left.pointer,
+                    lastPointer: left.pointer,
+                    end: right.end,
+                    lastEnd: right.lastEnd
+                };
+                
                 stack = {
-                    fragment: {
-                        state: left.state,
-                        pointer: left.pointer,
-                        lastPointer: left.pointer,
-                        end: right.end,
-                        lastEnd: right.lastEnd
-                    },
+                    fragment: fragment,
                     before: stack.before
                 };
+                
+                state = state.id;
+                activity = left.active;
+                
                 break;
             
             // join options
@@ -136,6 +165,7 @@ Fsm.prototype = {
                 activity = mgr(item);
                 
                 fragment = {
+                    active: activity,
                     state: null
                 };
                 
@@ -149,8 +179,7 @@ Fsm.prototype = {
                     fragment: fragment,
                     next: null
                 };
-                
-                //console.log('+ activity: ', activity.desc, ':', activity.name);
+
                 stack = {
                     fragment: fragment,
                     before: stack
@@ -164,10 +193,14 @@ Fsm.prototype = {
                 
                 // create start state
                 if (!state) {
+                    pointer = fragment.pointer;
                     state = monitored = this.generateState(
                                                 monitored,
-                                                fragment.pointer);
+                                                pointer);
                     fragment.state = state;
+                    
+                    state.type = 'link';
+                    state.action = pointer.item.id;
                 }
                 
                 this.start = state.id;
@@ -187,6 +220,7 @@ Fsm.prototype = {
                                 target = monitored = this.generateState(
                                                                 monitored);
                                 ends[target.id] = true;
+                                target.type = 'end';
                             }
                             pointer.to = target.id;
                         }
@@ -202,8 +236,16 @@ Fsm.prototype = {
                     state = monitored.id;
                     pointer = monitored.pointer;
                     transition = map[state];
+                    
+                    if (monitored.type) {
+                        actions[state] = {
+                            type: monitored.type,
+                            action: monitored.action || null
+                        };
+                    }
+                    
                     for (; pointer; pointer = pointer.next) {
-                        transition[pointer.item.id] = pointer.to;
+                        transition[pointer.item.desc] = pointer.to;
                     }
                 }
             }
