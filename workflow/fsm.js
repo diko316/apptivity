@@ -27,7 +27,6 @@ function Fsm(definition) {
 
     this.map = {};
     
-    
     this.states = {};
     
     this.populateStates(definition);
@@ -40,56 +39,67 @@ Fsm.prototype = {
     ends: void(0),
     states: void(0),
     
-    generateState: function () {
+    generateState: function (before, pointer) {
         var id = 'state' + (++STATE_GEN_ID);
         this.map[id] = {};
-        return id;
+        return {
+                id: id,
+                pointer: pointer || null,
+                before: before || null
+            };
     },
     
     populateStates: function (definition) {
         var map = this.map,
+            ends = this.ends,
             mgr = ACTIVITY,
             queue = definition.config.queue,
             c = -1,
             l = queue.length,
-            stack = null;
+            stack = null,
+            monitored = null;
             
-        var item, activity, obj, left, right,
-            pointer, state, target, end;
-            
-        console.log(queue);
+        var item, activity, left, right, pointer,
+            state, target, end, fragment, transition;
         
         for (; l--;) {
             item = queue[++c];
             
             switch (item) {
             // join
+            case '[]':
             case '.':
                 right = stack.fragment;
                 stack = stack.before;
                 left = stack.fragment;
                 
-                pointer = right.start;
-                
-                state = pointer.from;
+                state = right.state;
                 if (!state) {
-                    state = this.generateState();
-                    pointer.from = state;
+                    state = monitored = this.generateState(
+                                                    monitored,
+                                                    right.pointer);
+                    right.state = state;
                 }
                 
-                for (end = left.end; end; end = end.next) {
-                    pointer = end.pointer;
-                    target = pointer.from;
-                    pointer.to = target;
-                    if (target) {
-                        map[target][pointer.item.id] = state;
+                end = left.end;
+                
+                for (; end; end = end.next) {
+                    fragment = end.fragment;
+                    pointer = fragment.pointer;
+                    for (; pointer; pointer = pointer.next) {
+                        if (!pointer.to) {
+                            pointer.to = state.id;
+                        }
                     }
                 }
                 
                 stack = {
                     fragment: {
-                        start: left.start,
-                        end: right.end
+                        state: left.state,
+                        pointer: left.pointer,
+                        lastPointer: left.pointer,
+                        end: right.end,
+                        lastEnd: right.lastEnd
                     },
                     before: stack.before
                 };
@@ -101,55 +111,21 @@ Fsm.prototype = {
                 stack = stack.before;
                 left = stack.fragment;
                 
-                // join start
-                pointer = left.start;
-                state = pointer.from || right.start.from;
-                if (!state) {
-                    state = this.generateState();
-                }
+                state = left.state || right.state;
                 
-                end = null;
-                for (; pointer; pointer = pointer.next) {
-                    pointer.from = state;
-                    target = pointer.to;
-                    console.log('point: ', state, ' > ', pointer.item.id);
-                    if (target) {
-                        map[state][pointer.item.id] = target;
-                        console.log(' join: ', state, ' > ', pointer.item.id, ' => ', target);
-                    }
-                    if (!end && !pointer.next) {
-                        pointer.next = end = right.start;
-                    }
-                }
+                // join pointer
+                left.lastPointer.next = right.pointer;
                 
                 // join ends
-                end = left.end;
-                for (; end.next; end = end.next) {}
-                
-                end.next = right.end; 
+                left.lastEnd.next = right.end;
                 
                 stack = {
                     fragment: {
-                        start: left.start,
-                        end: left.end
-                    },
-                    before: stack.before
-                };
-                break;
-            
-            // condition merge
-            case '<':
-                right = stack.fragment;
-                stack = stack.before;
-                left = stack.fragment;
-                
-                // finalize options
-                pointer = left.start;
-                
-                stack = {
-                    fragment: {
-                        start: left.start,
-                        end: left.end
+                        state: state,
+                        pointer: left.pointer,
+                        lastPointer: right.lastPointer,
+                        end: left.end,
+                        lastEnd: right.lastEnd
                     },
                     before: stack.before
                 };
@@ -158,45 +134,78 @@ Fsm.prototype = {
             //  activities
             default:
                 activity = mgr(item);
-                obj = {
-                    item: activity,
-                    state: null,
-                    next: null
+                
+                fragment = {
+                    state: null
                 };
                 
-                pointer = {
+                fragment.pointer = fragment.lastPointer = {
                     item: activity,
-                    from: null,
                     to: null,
                     next: null
                 };
                 
+                fragment.end = fragment.lastEnd = {
+                    fragment: fragment,
+                    next: null
+                };
+                
+                //console.log('+ activity: ', activity.desc, ':', activity.name);
                 stack = {
-                    fragment: {
-                        start: pointer,
-                        end: {
-                            pointer: pointer,
-                            next: null
-                        }
-                    },
+                    fragment: fragment,
                     before: stack
                 };
             }
+            
             // end
             if (!l && stack) {
-                console.log(stack.fragment.start.item.id);
-                //console.log(stack.fragment.end);
-                // join start
-                //pointer = stack.fragment.start;
-                //state = pointer.from;
-                //if (!state) {
-                //    state = this.generateState();
-                //    for (; pointer; pointer = pointer.next) {
-                //        pointer.from = state;
-                //    }
-                //}
-                //this.start = state;
-                // join end
+                fragment = stack.fragment;
+                state = fragment.state;
+                
+                // create start state
+                if (!state) {
+                    state = monitored = this.generateState(
+                                                monitored,
+                                                fragment.pointer);
+                    fragment.state = state;
+                }
+                
+                this.start = state.id;
+                
+                // create end state
+                end = fragment.end;
+                target = null;
+                for (; end; end = end.next) {
+                    
+                    fragment = end.fragment;
+                    pointer = fragment.pointer;
+                    
+                    for (; pointer; pointer = pointer.next) {
+                        state = pointer.to;
+                        if (!state) {
+                            if (!target) {
+                                target = monitored = this.generateState(
+                                                                monitored);
+                                ends[target.id] = true;
+                            }
+                            pointer.to = target.id;
+                        }
+                        else {
+                            ends[state] = true;
+                        }
+                    }
+                    
+                }
+                
+                // map states
+                for (; monitored; monitored = monitored.before) {
+                    state = monitored.id;
+                    pointer = monitored.pointer;
+                    transition = map[state];
+                    for (; pointer; pointer = pointer.next) {
+                        transition[pointer.item.id] = pointer.to;
+                    }
+                }
             }
         }
         
@@ -204,258 +213,24 @@ Fsm.prototype = {
             throw new Error('invalid action sequence');
         }
         
-        console.log(stack);
+    },
+    
+    lookup: function (state, action) {
+        var map = this.map;
+        var transition;
         
-        
+        if (typeof state === 'string' &&
+            state in map &&
+            typeof action === 'string') {
+            
+            transition = map[state];
+            if (action in transition) {
+                return transition[action];
+            }
+        }
+        return void(0);
     }
     
-    
-    
-    //populateStates: function (definition) {
-    //    
-    //    var map = this.map,
-    //        states = this.states,
-    //        state = this.start,
-    //        endStates = this.ends,
-    //        anchor = state,
-    //        stack = null,
-    //        config = definition.config,
-    //        action = config.start,
-    //        merge = null,
-    //        stateBefore = null,
-    //        actionAnchor = null,
-    //        lastAction = null,
-    //        option = null;
-    //            
-    //    var id, defOption, transition, guard, ends, inState;
-    //    
-    //    for (; action; ) {
-    //        
-    //        stateBefore = state;
-    //        if (!actionAnchor) {
-    //            actionAnchor = action;
-    //        }
-    //        
-    //        // create transition
-    //        transition = map[state];
-    //        id = action.id;
-    //        guard = id + '[' + (action.guardName || action.name) + ']';
-    //        if (guard in transition) {
-    //            throw new Error(
-    //                'state conflict from transition ' +
-    //                state + ' to ' +
-    //                action.type + ':'  + action.name);
-    //        }
-    //        else {
-    //            
-    //            // new
-    //            transition[guard] = id;
-    //            state = id;
-    //            map[state] = {};
-    //        }
-    //        
-    //        inState = stateBefore in states;
-    //        
-    //        // condition option
-    //        if (stateBefore === anchor.id && merge) {
-    //            if (inState) {
-    //                ends = states[stateBefore].options;
-    //                ends[ends.length] = action.id;
-    //                
-    //            }
-    //            else {
-    //                states[stateBefore] = {
-    //                    type: 'options',
-    //                    options: [action.id]
-    //                };
-    //
-    //            }
-    //            
-    //            
-    //        }
-    //        else if (inState) {
-    //            states[stateBefore].target = action.id;
-    //            
-    //        }
-    //        else {
-    //            
-    //            states[stateBefore] = {
-    //                type: action.type,
-    //                target: action.id
-    //            };
-    //        }
-    //        
-    //        // push to stack and evaluate action later
-    //        defOption = action.options;
-    //        if (defOption) {
-    //
-    //            stack = {
-    //                action: action.next,
-    //                option: option,
-    //                config: config,
-    //
-    //                anchor: action,
-    //                merge: merge,
-    //                actionAnchor: actionAnchor,
-    //
-    //                before: stack
-    //            };
-    //            
-    //            
-    //            // create merge state
-    //            merge = this.generateState();
-    //            states[merge] = {
-    //                type: 'merge',
-    //                action: action.id,
-    //                ends: []
-    //            };
-    //            state = action.id;
-    //            anchor = action;
-    //            
-    //            option = defOption;
-    //            config = option.definition.config;
-    //            action = config.start;
-    //            actionAnchor = null;
-    //            
-    //            if (!stack.before) {
-    //                
-    //                lastAction = merge;
-    //            }
-    //            continue;
-    //            
-    //        }
-    //        else if (!stack) {
-    //            lastAction = action.id;
-    //        }
-    //        
-    //        // next
-    //        action = action.next;
-    //        
-    //        for (; !action; ) {
-    //            
-    //            // iterate option
-    //            if (option && option.next) {
-    //                option = option.next;
-    //                action = option.definition.config.start;
-    //                
-    //                // link to merge state
-    //                states[state] = {
-    //                    type: 'reduce',
-    //                    reference: actionAnchor.id,
-    //                    target: merge
-    //                };
-    //                ends = states[merge].ends;
-    //                ends[ends.length] = state;
-    //                //console.log(state, ' = ', anchor.id);
-    //                state = anchor.id;
-    //                actionAnchor = null;
-    //                break;
-    //        
-    //            }
-    //            
-    //            // no more stack
-    //            else if (!stack) {
-    //                break;
-    //            }
-    //            
-    //            // iterate stack
-    //            action = stack.action;
-    //            option = stack.option;
-    //            
-    //            // reduce
-    //            states[state] = {
-    //                type: 'reduce',
-    //                reference: actionAnchor.id,
-    //                target: merge
-    //            };
-    //            
-    //
-    //            ends = states[merge].ends;
-    //            ends[ends.length] = state;
-    //            state = merge;
-    //            
-    //            anchor = stack.anchor;
-    //            config = stack.config;
-    //            merge = stack.merge;
-    //            
-    //            actionAnchor = stack.actionAnchor;
-    //            stack = stack.before;
-    //
-    //        }
-    //        
-    //        // ended
-    //        if (!action) {
-    //            endStates[lastAction] = true;
-    //        }
-    //    }
-    //
-    //},
-    
-    //lookup: function (state) {
-    //    var states = this.states,
-    //        mgr = ACTIVITY;
-    //        
-    //    var activity, action;
-    //    
-    //    if (typeof state === 'string' && state in states) {
-    //        
-    //        activity = states[state];
-    //        
-    //        switch (activity.type) {
-    //        case 'action':
-    //            return [
-    //                activity.target,
-    //                'action',
-    //                mgr(activity.target)
-    //            ];
-    //        
-    //        case 'condition':
-    //            return [
-    //                activity.target,
-    //                'action',
-    //                mgr(activity.target)
-    //            ];
-    //        case 'fork':
-    //            return [
-    //                activity.target,
-    //                'action',
-    //                mgr(activity.target)
-    //            ];
-    //        case 'options':
-    //            action = mgr(state);
-    //            return [
-    //                activity.options,
-    //                action.type,
-    //                action
-    //            ];
-    //        case 'reduce':
-    //            action = mgr(state);
-    //            return [
-    //                activity.target,
-    //                'action',
-    //                action
-    //            ];
-    //        case 'merge':
-    //            
-    //        }
-    //        
-    //        
-    //        
-    //        console.log(state, '=> ', activity);
-    //        //
-    //        //
-    //        //activity = states[state];
-    //        //action = ACTIVITY(activity.action);
-    //        //console.log('action id ', activity.action, action);
-    //        //return {
-    //        //    state: map[state][action.id],
-    //        //    activity: activity,
-    //        //    action: action
-    //        //};
-    //        //console.log('transition: ', transition);
-    //    }
-    //    return void(0);
-    //}
     
 };
 

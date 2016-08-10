@@ -42,24 +42,8 @@ var workflow = DEFINE('createUser').
                         action('noaction')
                 ).
                 action('finalBuang')
-        //);
         ).
         action('last');
-
-//var iterator = new ITERATOR(workflow);
-//
-//
-////console.log(iterator.lookup());
-//
-//console.log(iterator.lookup());
-//iterator.next();
-//
-//console.log(iterator.lookup());
-//iterator.next();
-//
-//console.log(iterator.lookup());
-//iterator.next();
-
 
 var fsm = FSM(workflow);
 

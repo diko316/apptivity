@@ -25,6 +25,8 @@ module.exports = [
         action.options = options;
         config.last = action;
         
+        queue[len++] = action.id;
+        
         for (; l--;) {
             definition = list[++c];
             if (!(definition instanceof Definition)) {
@@ -42,8 +44,8 @@ module.exports = [
             
         }
         
-        queue[len++] = action.id;
-        queue[len++] = '<';
+        
+        queue[len++] = '[]';
         
         if (notempty) {
             queue[len++] = '.';
