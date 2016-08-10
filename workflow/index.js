@@ -28,6 +28,8 @@ var workflow = DEFINE('createUser').
             }).
             
         condition(
+            
+                
             DEFINE('renderedToHTML').
                 action('renderDom1'),
                 
@@ -42,6 +44,7 @@ var workflow = DEFINE('createUser').
                         action('noaction')
                 ).
                 action('finalBuang')
+                
         ).
         action('last');
 
