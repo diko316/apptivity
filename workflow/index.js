@@ -29,8 +29,6 @@ var workflow = DEFINE('createUser').
             }).
             
         condition(
-            
-                
             DEFINE('renderedToHTML').
                 
                 action('renderDom1'),
@@ -64,5 +62,4 @@ var session = new SESSION(fsm);
 
 
 session.next();
-
 
