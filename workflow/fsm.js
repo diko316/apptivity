@@ -5,7 +5,6 @@ var STATE_GEN_ID = 0,
     EXPORTS = createOrGet,
     ACTIVITY = require('../define/activity.js');
 
-
 function createOrGet(definition) {
     var list = FSMS,
         id = definition.id;
@@ -18,6 +17,10 @@ function createOrGet(definition) {
     list[id] = fsm = new Fsm(definition);
     return fsm;
     
+}
+
+function is(fsm) {
+    return fsm instanceof Fsm;
 }
 
 
@@ -58,6 +61,7 @@ Fsm.prototype = {
             l = queue.length,
             stack = null,
             monitored = null,
+            endState = null,
             states = {};
             
         var item, left, right, pointer, options, option, ol, index,
@@ -68,6 +72,33 @@ Fsm.prototype = {
             item = queue[++c];
             
             switch (item) {
+            // end
+            case '$':
+                end = stack.fragment.end;
+                for (; end; end = end.next) {
+                    
+                    fragment = end.fragment;
+                    pointer = fragment.pointer;
+                    state = pointer.to;
+                    if (!state) {
+                        if (!endState) {
+                            endState = monitored = this.generateState(
+                                                            monitored);
+                            states[endState.id] = endState;
+                            ends[endState.id] = true;
+                            endState.action = {
+                                type: 'end'
+                            };
+                        }
+                        pointer.to = endState.id;
+                    }
+                    else {
+                        ends[state] = true;
+                    }
+                    
+                }
+                break;
+            
             // join
             case '[]':
             case '.':
@@ -107,9 +138,9 @@ Fsm.prototype = {
                     
                     state.action = {
                         type: activity.type,
-                        //target: right.options,
                         action: activity.id
                     };
+                    
                     state.options = right.options;
                     
                 }
@@ -278,16 +309,16 @@ Fsm.prototype = {
                     pointer = fragment.pointer;
                     state = pointer.to;
                     if (!state) {
-                        if (!target) {
-                            target = monitored = this.generateState(
+                        if (!endState) {
+                            endState = monitored = this.generateState(
                                                             monitored);
-                            states[target.id] = target;
-                            ends[target.id] = true;
-                            target.action = {
+                            states[endState.id] = endState;
+                            ends[endState.id] = true;
+                            endState.action = {
                                 type: 'end'
                             };
                         }
-                        pointer.to = target.id;
+                        pointer.to = endState.id;
                     }
                     else {
                         ends[state] = true;
@@ -386,3 +417,4 @@ Fsm.prototype = {
 };
 
 module.exports = EXPORTS;
+EXPORTS.is = is;

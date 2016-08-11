@@ -3,7 +3,7 @@
 var EXPORTS = instantiate,
     DEFINE = require('../define/index.js'),
     FSM = require('./fsm.js'),
-    ITERATOR = require('./iterator.js');
+    SESSION = require('./session.js');
 
 function instantiate() {
     
@@ -17,6 +17,7 @@ var workflow = DEFINE('createUser').
 
         action('requestForm').
             describe('this is a test').
+            
             handler(function () {
                 console.log('handler');
             }).
@@ -31,6 +32,7 @@ var workflow = DEFINE('createUser').
             
                 
             DEFINE('renderedToHTML').
+                
                 action('renderDom1'),
                 
             DEFINE('failedRender').
@@ -50,12 +52,17 @@ var workflow = DEFINE('createUser').
 
 var fsm = FSM(workflow);
 
-console.log('workflow ',
-    require('util').inspect(fsm, { depth: 10, showHidden: true })
-);
+var session = new SESSION(fsm);
+
+//console.log('workflow ',
+//    require('util').inspect(fsm, { depth: 10, showHidden: true })
+//);
 
 //console.log('lookup: ', fsm.lookup(fsm.start));
 //console.log('lookup: ', fsm.lookup('state2'));
 //console.log('lookup: ', fsm.lookup('state4'));
+
+
+session.next();
 
 
