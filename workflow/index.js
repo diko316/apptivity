@@ -54,6 +54,8 @@ console.log('workflow ',
     require('util').inspect(fsm, { depth: 10, showHidden: true })
 );
 
-//console.log('lookup: ', fsm.lookup('activity3'));
-//console.log('lookup: ', fsm.lookup('activity4'));
+//console.log('lookup: ', fsm.lookup(fsm.start));
+//console.log('lookup: ', fsm.lookup('state2'));
+//console.log('lookup: ', fsm.lookup('state4'));
+
 

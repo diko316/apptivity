@@ -2,11 +2,11 @@
 
 var STATE_GEN_ID = 0,
     FSMS = {},
-    EXPORTS = create,
+    EXPORTS = createOrGet,
     ACTIVITY = require('../define/activity.js');
 
 
-function create(definition) {
+function createOrGet(definition) {
     var list = FSMS,
         id = definition.id;
     var fsm;
@@ -27,7 +27,6 @@ function Fsm(definition) {
     this.map = {};
    
     this.actions = {};
-    this.merges = {};
     
     this.populateStates(definition);
 }
@@ -53,16 +52,17 @@ Fsm.prototype = {
         var map = this.map,
             ends = this.ends,
             actions = this.actions,
-            merges = this.merges,
             mgr = ACTIVITY,
             queue = definition.config.queue,
             c = -1,
             l = queue.length,
             stack = null,
-            monitored = null;
+            monitored = null,
+            states = {};
             
-        var item, activity, left, right, pointer, options, option, ol,
-            id, state, target, end, fragment, transition;
+        var item, left, right, pointer, options, option, ol, index,
+            actionId, stateId, id, state, target, end, fragment, transition,
+            activity, action, merges;
         
         for (; l--;) {
             item = queue[++c];
@@ -80,6 +80,7 @@ Fsm.prototype = {
                     state = monitored = this.generateState(
                                                     monitored,
                                                     right.pointer);
+                    states[state.id] = state;
                     right.state = state;
                     pointer = right.pointer;
                     for (; pointer; pointer = pointer.next) {
@@ -256,7 +257,7 @@ Fsm.prototype = {
                     state = monitored = this.generateState(
                                                 monitored,
                                                 pointer);
-                    
+                    states[state.id] = state;
                     pointer.from = state;
                     fragment.state = state;
                     
@@ -280,6 +281,7 @@ Fsm.prototype = {
                         if (!target) {
                             target = monitored = this.generateState(
                                                             monitored);
+                            states[target.id] = target;
                             ends[target.id] = true;
                             target.action = {
                                 type: 'end'
@@ -300,14 +302,18 @@ Fsm.prototype = {
                     activity = null;
                     if (monitored.action) {
                         actions[state] = activity = monitored.action;
+                        
                     }
                     
                     // create target and options
                     if (monitored.options) {
+                        index = {};
                         options = [];
                         ol = 0;
                         activity.options = options;
+                        activity.index = index;
                         option = monitored.options;
+                        
                         for (; option; option = option.next) {
                             right = option.to;
                             left = option.from;
@@ -319,23 +325,32 @@ Fsm.prototype = {
                             // create wait entry
                             id = left.from.id + ' > ' + target;
                             
+                            index[target] = {
+                                type: 'link',
+                                target: target,
+                                entry: id
+                            };
+                            
                             // create wait exit
                             for (; right; right = right.next) {
                                 
                                 pointer = right.pointer;
-                                end = pointer.to;
-                                target = pointer.from.id +
-                                        ' > ' +
-                                        pointer.item.id;
+                                actionId = pointer.item.id;
+                                stateId = pointer.from.id;
+                                end = stateId + ' > ' + actionId;
                                 
-                                if (target in merges) {
-                                    transition = merges[target];
-                                }
-                                else {
-                                    merges[target] = transition = {};
+                                action = states[stateId].action;
+                                
+                                if (action.options) {
+                                    action = action.index[actionId];
                                 }
                                 
-                                transition[id] = activity.action;
+                                merges = action.merges;
+                                if (!merges) {
+                                    action.merges = merges = {};
+                                }
+                                
+                                merges[id] = activity.action;
                             }
                         }
                     }
@@ -358,30 +373,16 @@ Fsm.prototype = {
         
     },
     
-    lookup: function (state, action) {
-        var map = this.map;
-        var transition;
+    lookup: function (state) {
+        var actions = this.actions;
         
-        if (typeof state === 'string' &&
-            state in map &&
-            typeof action === 'string') {
-            
-            transition = map[state];
-            if (action in transition) {
-                return transition[action];
-            }
+        if (typeof state === 'string' && state in actions) {
+            return actions[state];
         }
         return void(0);
     }
     
     
 };
-
-
-
-
-
-
-
 
 module.exports = EXPORTS;
