@@ -24,10 +24,10 @@ function create(definition) {
 function Fsm(definition) {
     
     this.ends = {};
-
     this.map = {};
-    
+   
     this.actions = {};
+    this.merges = {};
     
     this.populateStates(definition);
 }
@@ -53,6 +53,7 @@ Fsm.prototype = {
         var map = this.map,
             ends = this.ends,
             actions = this.actions,
+            merges = this.merges,
             mgr = ACTIVITY,
             queue = definition.config.queue,
             c = -1,
@@ -61,7 +62,7 @@ Fsm.prototype = {
             monitored = null;
             
         var item, activity, left, right, pointer, options, option, ol,
-            state, target, end, fragment, transition;
+            id, state, target, end, fragment, transition;
         
         for (; l--;) {
             item = queue[++c];
@@ -110,31 +111,6 @@ Fsm.prototype = {
                     };
                     state.options = right.options;
                     
-                    
-                    // must create wait from pointers in setting up options
-                    
-                    //console.log('[]', state.id);
-                    //end = right.end;
-                    //for (; end; end = end.next) {
-                    //    fragment = end.fragment;
-                    //    pointer = fragment.pointer;
-                    //    console.log(' ',
-                    //        pointer.from && pointer.from.id, ':',
-                    //        pointer.item.desc, ' > ',
-                    //        pointer.to);
-                    //    
-                    //    pointer.wait = 
-                    //}
-                    
-                    //state.wait = fragment.end;
-                    
-                    //console.log('[] ', state.id,
-                    //            ' << ', left.pointer.item.desc,
-                    //            ' > ',
-                    //            right.end.fragment.pointer.from &&
-                    //            right.end.fragment.pointer.from.id,
-                    //            right.end.fragment.pointer.item.desc);
-                    
                 }
                 else {
                     
@@ -142,13 +118,6 @@ Fsm.prototype = {
                         type: 'link',
                         target: right.pointer.item.id
                     };
-                    
-                    //console.log('. ', state.id,
-                    //    //' << ', left.pointer.item.desc,
-                    //    ' < ', right.pointer.item.desc);
-                    //    //' ? ', right.end.fragment.pointer.from,
-                    //    //right.end.fragment.pointer.item &&
-                    //    //right.end.fragment.pointer.item.desc);
                     
                 }
                 
@@ -306,23 +275,20 @@ Fsm.prototype = {
                     
                     fragment = end.fragment;
                     pointer = fragment.pointer;
-                    
-                    for (; pointer; pointer = pointer.next) {
-                        state = pointer.to;
-                        if (!state) {
-                            if (!target) {
-                                target = monitored = this.generateState(
-                                                                monitored);
-                                ends[target.id] = true;
-                                target.action = {
-                                    type: 'end'
-                                };
-                            }
-                            pointer.to = target.id;
+                    state = pointer.to;
+                    if (!state) {
+                        if (!target) {
+                            target = monitored = this.generateState(
+                                                            monitored);
+                            ends[target.id] = true;
+                            target.action = {
+                                type: 'end'
+                            };
                         }
-                        else {
-                            ends[state] = true;
-                        }
+                        pointer.to = target.id;
+                    }
+                    else {
+                        ends[state] = true;
                     }
                     
                 }
@@ -343,25 +309,33 @@ Fsm.prototype = {
                         activity.options = options;
                         option = monitored.options;
                         for (; option; option = option.next) {
-                            target = option.to;
-                            pointer = option.from;
+                            right = option.to;
+                            left = option.from;
+                            target = left.item.id;
                             
-                            options[ol++] = pointer.item.id;
-                            //if (!option) {
-                            //    
-                            //}
-                            console.log('from ',
-                                pointer.from.id, ' > ',
-                                pointer.item.desc);
-                            for (; target; target = target.next) {
+                            // create options
+                            options[ol++] = target;
+                            
+                            // create wait entry
+                            id = left.from.id + ' > ' + target;
+                            
+                            // create wait exit
+                            for (; right; right = right.next) {
                                 
-                                console.log(' >> ',
-                                    target.pointer.from.id,
-                                    ' > ',
-                                    target.pointer.item.desc,
-                                    ' => ',
-                                    target.pointer.to
-                                );
+                                pointer = right.pointer;
+                                end = pointer.to;
+                                target = pointer.from.id +
+                                        ' > ' +
+                                        pointer.item.id;
+                                
+                                if (target in merges) {
+                                    transition = merges[target];
+                                }
+                                else {
+                                    merges[target] = transition = {};
+                                }
+                                
+                                transition[id] = activity.action;
                             }
                         }
                     }
@@ -371,10 +345,7 @@ Fsm.prototype = {
                     transition = map[state];
                     
                     for (; pointer; pointer = pointer.next) {
-                        transition[pointer.item.id] = pointer.to;
-                        if (!pointer.from) {
-                            console.log('no from :-(', state, ' > ', pointer.item.desc);
-                        }
+                        transition[pointer.item.desc] = pointer.to;
                     }
 
                 }
