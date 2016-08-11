@@ -60,7 +60,7 @@ Fsm.prototype = {
             stack = null,
             monitored = null;
             
-        var item, activity, left, right, pointer, options, wait,
+        var item, activity, left, right, pointer, options, option, ol,
             state, target, end, fragment, transition;
         
         for (; l--;) {
@@ -105,9 +105,11 @@ Fsm.prototype = {
                     
                     state.action = {
                         type: activity.type,
-                        target: right.options,
+                        //target: right.options,
                         action: activity.id
                     };
+                    state.options = right.options;
+                    
                     
                     // must create wait from pointers in setting up options
                     
@@ -156,7 +158,8 @@ Fsm.prototype = {
                     lastPointer: left.pointer,
                     end: right.end,
                     lastEnd: right.lastEnd,
-                    options: null
+                    options: null,
+                    lastOptions: null
                 };
                 
                 stack = {
@@ -177,14 +180,53 @@ Fsm.prototype = {
                 
                 state = left.state || right.state;
                 
-                // create options
-                options = left.options;
-                if (!options) {
-                    left.options = options = [
-                        left.pointer.item.id
-                    ];
+                
+                
+                // create right option
+                end = right.end;
+                fragment = null;
+                for (; end; end = end.next) {
+                    target = {
+                        pointer: end.fragment.pointer,
+                        next: null
+                    };
+                    fragment = fragment ?
+                                    (fragment.next = target) : target;
                 }
-                options[options.length] = right.pointer.item.id;
+                
+                option = {
+                    from: right.pointer,
+                    to: fragment,
+                    next: null
+                };
+                
+                
+                // create left options
+                options = left.lastOptions;
+                if (!options) {
+                   
+                    end = left.end;
+                    fragment = null;
+                    
+                    for (; end; end = end.next) {
+                        target = {
+                                pointer: end.fragment.pointer,
+                                next: null
+                            };
+                        fragment = fragment ?
+                                        (fragment.next = target) : target;
+                    }
+                    
+                    options = {
+                        from: left.pointer,
+                        to: fragment,
+                        next: option
+                    };
+                    
+                }
+                else {
+                    options.next = option;
+                }
                 
                 // join pointer
                 left.lastPointer.next = right.pointer;
@@ -199,7 +241,8 @@ Fsm.prototype = {
                         lastPointer: right.lastPointer,
                         end: left.end,
                         lastEnd: right.lastEnd,
-                        options: options
+                        options: left.options || options,
+                        lastOptions: option
                     },
                     before: stack.before
                 };
@@ -212,7 +255,8 @@ Fsm.prototype = {
                 fragment = {
                     active: activity,
                     state: null,
-                    options: null
+                    options: null,
+                    lastOptions: null
                 };
                 
                 fragment.pointer = fragment.lastPointer = {
@@ -286,31 +330,53 @@ Fsm.prototype = {
                 // map states
                 for (; monitored; monitored = monitored.before) {
                     state = monitored.id;
+                    
+                    activity = null;
+                    if (monitored.action) {
+                        actions[state] = activity = monitored.action;
+                    }
+                    
+                    // create target and options
+                    if (monitored.options) {
+                        options = [];
+                        ol = 0;
+                        activity.options = options;
+                        option = monitored.options;
+                        for (; option; option = option.next) {
+                            target = option.to;
+                            pointer = option.from;
+                            
+                            options[ol++] = pointer.item.id;
+                            //if (!option) {
+                            //    
+                            //}
+                            console.log('from ',
+                                pointer.from.id, ' > ',
+                                pointer.item.desc);
+                            for (; target; target = target.next) {
+                                
+                                console.log(' >> ',
+                                    target.pointer.from.id,
+                                    ' > ',
+                                    target.pointer.item.desc,
+                                    ' => ',
+                                    target.pointer.to
+                                );
+                            }
+                        }
+                    }
+                    
+                    // create mapped states
                     pointer = monitored.pointer;
                     transition = map[state];
                     
-                    if (monitored.action) {
-                        actions[state] = monitored.action;
-                    }
-                    
                     for (; pointer; pointer = pointer.next) {
-                        transition[pointer.item.desc] = pointer.to;
+                        transition[pointer.item.id] = pointer.to;
                         if (!pointer.from) {
                             console.log('no from :-(', state, ' > ', pointer.item.desc);
                         }
                     }
-                    
-                    //end = monitored.wait;
-                    //if (end) {
-                    //    for (; end; end = end.next) {
-                    //        fragment = end.fragment;
-                    //        console.log(' wait: ',
-                    //            fragment.pointer.item.desc,
-                    //            fragment.pointer.to
-                    //        );
-                    //    }
-                    //    
-                    //}
+
                 }
             }
         }
