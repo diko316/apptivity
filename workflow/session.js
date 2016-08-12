@@ -1,6 +1,7 @@
 'use strict';
 
 var FSM = require('./fsm.js'),
+    PROCESSOR = require('./processor.js'),
     ACTIVITY = require('../define/activity.js'),
     PROMISE = require('bluebird'),
     SESSION_GEN_ID = 0;
@@ -77,7 +78,7 @@ function executeGuard(data, actions, getOne) {
             else {
                 if (errorCount) {
                     resolved = true;
-                    reject(action);
+                    reject(null);
                 }
                 else if (count === all) {
                     resolved = true;
@@ -114,16 +115,6 @@ function executeGuard(data, actions, getOne) {
     });
 }
 
-function executeAction(data, action) {
-    var handler = action.handler,
-        promise = PROMISE.resolve(data);
-    
-    return handler ?
-                promise.then(handler) : promise;
-}
-
-
-
 
 
 function Session(fsm) {
@@ -140,43 +131,97 @@ Session.prototype = {
     current: null,
     constructor: Session,
     
-    next: function (data) {
+    start: function () {
         
-        var current = this.current,
-            fsm = this.fsm,
-            activity = ACTIVITY;
-            
-        var config, action, guard, promise, request;
-            
-        if (!current) {
-            this.current = current = {
-                state: fsm.start,
-                data: null
-            };
-        }
-        
-        config = fsm.lookup(current.state);
-        
-        switch (config.type) {
-        case 'link':
-            action = activity(config.target);
-            
-            return executeGuard(data, [action], true).
-                        then(function () {
-                            return executeAction(data, action);
-                        });
-        
-        case 'condition':
-        }
-        
-        
-        
-        
-        console.log(config);
-        
-        
+    },
+    
+    stop: function () {
         
     }
+    
+    
+    //hasPendingProcess: function () {
+    //    var current = this.current;
+    //    
+    //    for (; current; current = current.next) {
+    //        if (current.processing()) {
+    //            return true;
+    //        }
+    //    }
+    //    
+    //    return false;
+    //},
+    //
+    //next: function (data) {
+    //    
+    //    var me = this,
+    //        current = me.current,
+    //        fsm = me.fsm,
+    //        activity = ACTIVITY,
+    //        processor = PROCESSOR;
+    //        
+    //    var state, config;
+    //    
+    //    // do not proceed if there are pending process
+    //    if (me.hasPendingProcess()) {
+    //        return new PROMISE(function (resolve) {
+    //            var p = processor,
+    //                subscriptions = [
+    //                    p.subscribe('complete', execOnNoPending),
+    //                    p.subscribe('cancel', execOnNoPending),
+    //                    p.subscribe('before-kill', execOnNoPending)
+    //                ];
+    //                
+    //            function execOnNoPending() {
+    //                var list = subscriptions;
+    //                var l, len;
+    //                if (!me.hasPendingProcess()) {
+    //                    
+    //                    // remove event listener
+    //                    for (l = len = list.length; l--;) {
+    //                        list[l]();
+    //                    }
+    //                    list.splice(0, len);
+    //                    resolve(me.next(data));
+    //                }
+    //            }
+    //        });
+    //    }
+    //    
+    //    
+    //        
+    //    //var config, action, guard, promise, request;
+    //    //    
+    //    //if (!current) {
+    //    //    this.current = current = {
+    //    //        state: fsm.start,
+    //    //        data: null
+    //    //    };
+    //    //}
+    //    //
+    //    //config = fsm.lookup(current.state);
+    //    //
+    //    //switch (config.type) {
+    //    //case 'link':
+    //    //    action = activity(config.target);
+    //    //    
+    //    //    return executeGuard(data, [action], true).
+    //    //                then(function () {
+    //    //                    console.log('action ready ', action); 
+    //    //                    //return executeAction(data, action);
+    //    //                });
+    //    //
+    //    //case 'condition':
+    //    //}
+    //    //
+    //    //
+    //    //
+    //    //
+    //    //console.log(config);
+    //    //
+    //    //
+    //    
+    //}
 };
 
 
