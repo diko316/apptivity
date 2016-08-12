@@ -5,7 +5,7 @@ var FSM = require('./fsm.js'),
     PROMISE = require('bluebird'),
     SESSION_GEN_ID = 0;
     
-    
+// TODO: create processor
 
 
 function EMPTY() {
@@ -89,6 +89,7 @@ function executeGuard(data, actions, getOne) {
                     PROMISE.reject(new Error()) : data;
         }
         
+        // resolve guarded
         for (; !resolved && l--;) {
             action = actions[++c];
             if (action.guard) {
@@ -99,11 +100,12 @@ function executeGuard(data, actions, getOne) {
             }
         }
         
-        // last priority
+        
         if (onlyOne && ul) {
             ul = 1;
         }
         
+        // unguarded last priority
         for (c = -1, l = ul; !resolved && l--;) {
             promise = promise.
                         then(createUnguarded(unguarded[++c], resolver));
@@ -112,10 +114,12 @@ function executeGuard(data, actions, getOne) {
     });
 }
 
-function executeAction(action, data, applyGuard) {
-    if (applyGuard === true) {
-        
-    }
+function executeAction(data, action) {
+    var handler = action.handler,
+        promise = PROMISE.resolve(data);
+    
+    return handler ?
+                promise.then(handler) : promise;
 }
 
 
@@ -157,12 +161,10 @@ Session.prototype = {
         case 'link':
             action = activity(config.target);
             
-            executeGuard(data, [action], true).
-                then(function (data) {
-                    console.log('gud! ', data);
-                });
-
-            break;
+            return executeGuard(data, [action], true).
+                        then(function () {
+                            return executeAction(data, action);
+                        });
         
         case 'condition':
         }

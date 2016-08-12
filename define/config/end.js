@@ -10,16 +10,18 @@ module.exports = [
     function (config) {
         var queue = config.queue,
             len = queue.length,
-            last = config.last;
+            last = config.last,
+            end = END;
 
         config.finalized = true;
         
-        if (!last) {
-            throw new Error(
-                'workflow has ended prematurely [' + config.name + ']');
+        queue[len++] = end.id;
+        
+        if (last) {
+            queue[len++] = '.';
         }
-
-        queue[len++] = '$';
+        
+        config.last = end;
 
     }
 ]; 

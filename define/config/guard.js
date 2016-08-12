@@ -24,7 +24,7 @@ module.exports = [
         
         if (name instanceof Function) {
             handler = name;
-            m = name.match(FUNCTION_TO_NAME.toString());
+            m = name.toString().match(FUNCTION_TO_NAME.toString());
             name = m ? m[1] : 'guard' + (++GUARD_ID_GEN);
         }
         

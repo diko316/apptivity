@@ -56,6 +56,7 @@ Fsm.prototype = {
             ends = this.ends,
             actions = this.actions,
             mgr = ACTIVITY,
+            endId = mgr.end.id,
             queue = definition.config.queue,
             c = -1,
             l = queue.length,
@@ -72,33 +73,6 @@ Fsm.prototype = {
             item = queue[++c];
             
             switch (item) {
-            // end
-            case '$':
-                end = stack.fragment.end;
-                for (; end; end = end.next) {
-                    
-                    fragment = end.fragment;
-                    pointer = fragment.pointer;
-                    state = pointer.to;
-                    if (!state) {
-                        if (!endState) {
-                            endState = monitored = this.generateState(
-                                                            monitored);
-                            states[endState.id] = endState;
-                            ends[endState.id] = true;
-                            endState.action = {
-                                type: 'end'
-                            };
-                        }
-                        pointer.to = endState.id;
-                    }
-                    else {
-                        ends[state] = true;
-                    }
-                    
-                }
-                break;
-            
             // join
             case '[]':
             case '.':
@@ -115,6 +89,7 @@ Fsm.prototype = {
                     right.state = state;
                     pointer = right.pointer;
                     for (; pointer; pointer = pointer.next) {
+                        
                         if (!pointer.from) {
                             pointer.from = state;
                         }
@@ -127,7 +102,21 @@ Fsm.prototype = {
                     fragment = end.fragment;
                     pointer = fragment.pointer;
                     for (; pointer; pointer = pointer.next) {
-                        if (!pointer.to) {
+                        // point to end state if it ended
+                        if (pointer.item.id === endId) {
+                            if (!endState) {
+                                endState = monitored = this.generateState(
+                                                            monitored);
+                                id = endState.id;
+                                states[id] = endState;
+                                ends[id] = true;
+                                endState.action = {
+                                    type: 'end'
+                                };
+                            }
+                            pointer.to = endState.id;
+                        }
+                        else if (!pointer.to) {
                             pointer.to = state.id;
                         }
                     }
@@ -156,7 +145,7 @@ Fsm.prototype = {
                 fragment = {
                     state: left.state,
                     pointer: left.pointer,
-                    lastPointer: left.pointer,
+                    lastPointer: left.lastPointer,
                     end: right.end,
                     lastEnd: right.lastEnd,
                     options: null,
@@ -312,8 +301,9 @@ Fsm.prototype = {
                         if (!endState) {
                             endState = monitored = this.generateState(
                                                             monitored);
-                            states[endState.id] = endState;
-                            ends[endState.id] = true;
+                            id = endState.id;
+                            states[id] = endState;
+                            ends[id] = true;
                             endState.action = {
                                 type: 'end'
                             };
@@ -391,7 +381,7 @@ Fsm.prototype = {
                     transition = map[state];
                     
                     for (; pointer; pointer = pointer.next) {
-                        transition[pointer.item.desc] = pointer.to;
+                        transition[pointer.item.id] = pointer.to;
                     }
 
                 }
@@ -399,6 +389,7 @@ Fsm.prototype = {
         }
         
         if (!stack || stack.before) {
+            console.log('before? ', stack.before);
             throw new Error('invalid action sequence');
         }
         
