@@ -1,6 +1,7 @@
 'use strict';
 
-var ACTIVITY = require('../activity.js');
+var ACTIVITY = require('../activity.js'),
+    FORK_ID_GEN = 0;
 
 module.exports = [
     'fork',
@@ -18,7 +19,8 @@ module.exports = [
             queue = config.queue,
             len = queue.length,
             notempty = len,
-            action = ACTIVITY.create('fork', 'choice');
+            action = ACTIVITY.create('fork',
+                                'fork' + (++FORK_ID_GEN));
             
         var definition;
         

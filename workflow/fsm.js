@@ -127,7 +127,7 @@ Fsm.prototype = {
                     
                     state.action = {
                         type: activity.type,
-                        action: activity.id
+                        action: activity.desc,
                     };
                     
                     state.options = right.options;
@@ -137,7 +137,7 @@ Fsm.prototype = {
                     
                     state.action = {
                         type: 'link',
-                        target: right.pointer.item.id
+                        target: right.pointer.item.desc
                     };
                     
                 }
@@ -283,7 +283,7 @@ Fsm.prototype = {
                     
                     state.action = {
                         type: 'link',
-                        target: pointer.item.id
+                        target: pointer.item.desc
                     };
                 }
                 
@@ -338,7 +338,7 @@ Fsm.prototype = {
                         for (; option; option = option.next) {
                             right = option.to;
                             left = option.from;
-                            target = left.item.id;
+                            target = left.item.desc;
                             
                             // create options
                             options[ol++] = target;
@@ -356,9 +356,9 @@ Fsm.prototype = {
                             for (; right; right = right.next) {
                                 
                                 pointer = right.pointer;
-                                actionId = pointer.item.id;
+                                actionId = pointer.item.desc;
                                 stateId = pointer.from.id;
-                                end = stateId + ' > ' + actionId;
+                                //end = stateId + ' > ' + actionId;
                                 
                                 action = states[stateId].action;
                                 
@@ -381,7 +381,23 @@ Fsm.prototype = {
                     transition = map[state];
                     
                     for (; pointer; pointer = pointer.next) {
-                        transition[pointer.item.id] = pointer.to;
+                        id = pointer.item.desc;
+                        if (id in transition) {
+                            throw new Error(
+                                'Action has conflict [' +
+                                    pointer.item.name +
+                                    ']');
+                        }
+                        transition[id] = pointer.to;
+                        
+                        // action definitions
+                        id = state + ' > ' + id;
+                        if (!(id in actions)) {
+                            actions[id] = {};
+                        }
+                        
+                        actions[id].actionId = pointer.item.id;
+                        
                     }
 
                 }
@@ -402,6 +418,39 @@ Fsm.prototype = {
             return actions[state];
         }
         return void(0);
+    },
+    
+    target: function (state, actionId) {
+        var map = this.map;
+        var transition;
+        
+        if (typeof state === 'string' &&
+            typeof actionId === 'string' &&
+            state in map) {
+
+            transition = map[state];
+            
+            if (actionId in transition) {
+                return transition[actionId];
+            }
+        }
+        
+        return void(0);
+    },
+    
+    action: function (state, actionId) {
+        var actions = this.actions;
+        var id;
+        
+        if (typeof state === 'string' && typeof actionId === 'string') {
+            id = state + ' > ' + actionId;
+            if (id in actions) {
+                return ACTIVITY(actions[id].actionId);
+            }
+        }
+        
+        return void(0);
+        
     }
     
     

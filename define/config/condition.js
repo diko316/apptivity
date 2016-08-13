@@ -1,6 +1,7 @@
 'use strict';
 
-var ACTIVITY = require('../activity.js');
+var ACTIVITY = require('../activity.js'),
+    CONDITION_ID_GEN = 0;
 
 module.exports = [
     'condition',
@@ -18,7 +19,8 @@ module.exports = [
             queue = config.queue,
             len = queue.length,
             notempty = len,
-            action = ACTIVITY.create('condition', 'choice');
+            action = ACTIVITY.create('condition',
+                                'choice' + (++ CONDITION_ID_GEN));
             
         var definition;
         

@@ -19,12 +19,11 @@ function createGuardCallback(action, resolver) {
     return function (data) {
         return PROMISE.resolve(guard(data)).
                 then(function () {
-                        return resolver(action, data, true);
+                        return resolver(action, data, true, null);
                     },
-                    function () {
-                        return resolver(action, data, false);
-                    }).
-                    catch(EMPTY);
+                    function (e) {
+                        return resolver(action, data, false, e);
+                    });
     };
 }
 
@@ -32,15 +31,13 @@ function createUnguardedCallback(action, resolver) {
     return function (data) {
         return PROMISE.resolve(data).
                 then(function (data) {
-                    return resolver(action, data, true);
-                }).
-                catch(EMPTY);
+                        return resolver(action, data, true);
+                    });
     };
 }
 
 
-function executeGuard(data, actions, getOne) {
-    
+function executeGuard(data, actions) {
     var len = actions.length;
 
     return new PROMISE(function (resolve, reject) {
@@ -49,41 +46,24 @@ function executeGuard(data, actions, getOne) {
             l = len,
             c = -1,
             processed = 0,
-            errors = 0,
             unguarded = [],
             ul = 0,
             promise = PROMISE.resolve(data),
-            resolved = false,
-            onlyOne = getOne !== false;
+            resolved = false;
             
         var action;
         
-        function resolver(action, data, success) {
+        function resolver(action, data, success, errorMessage) {
             var all = len,
-                count = ++processed,
-                errorCount = success ? errors : ++errors;
+                count = ++processed;
             
-            // one guard only
-            if (onlyOne) {
-                if (!errorCount) {
-                    resolved = true;
-                    resolve(action);
-                }
-                else if (count === all) {
-                    resolved = true;
-                    reject(false);
-                }
+            if (success) {
+                resolved = true;
+                resolve(action);
             }
-            // execute all
-            else {
-                if (errorCount) {
-                    resolved = true;
-                    reject(null);
-                }
-                else if (count === all) {
-                    resolved = true;
-                    resolve(actions);
-                }
+            else if (count === all) {
+                resolved = true;
+                reject(errorMessage);
             }
             
             return resolved ?
@@ -94,16 +74,11 @@ function executeGuard(data, actions, getOne) {
         for (; !resolved && l--;) {
             action = actions[++c];
             if (action.guard) {
-                promise = promise.then(create(action, resolver, onlyOne));
+                promise = promise.then(create(action, resolver));
             }
             else {
                 unguarded[ul++] = action;
             }
-        }
-        
-        
-        if (onlyOne && ul) {
-            ul = 1;
         }
         
         // unguarded last priority
@@ -112,9 +87,31 @@ function executeGuard(data, actions, getOne) {
                         then(createUnguarded(unguarded[++c], resolver));
         }
         
+        promise.catch(EMPTY);
+        
     });
 }
 
+function execActionOnFulfill(action, data, state, fsm) {
+    var to = fsm.target(state, action.desc);
+    
+    return PROMISE.resolve(data).
+                then(function () {
+                    var handler = action.handler;
+                    return handler ?
+                                handler(data) : data;
+                }).
+                then(function (response) {
+                    return {
+                        activity: action,
+                        from: state,
+                        to: to,
+                        request: data,
+                        response: response
+                    };
+                });
+    
+}
 
 
 function Session(fsm) {
@@ -131,97 +128,80 @@ Session.prototype = {
     current: null,
     constructor: Session,
     
-    start: function () {
+    exec: function (state, data) {
+        var fsm = this.fsm,
+            activity = fsm.lookup(state);
+            
+        var action, actions, options, c, l, responses, promises, callback;
         
+        if (!activity) {
+            throw new Error('No activity found in state: ' + state);
+        }
+        
+        switch (activity.type) {
+            
+        case 'link':
+            action = fsm.action(state, activity.target);
+            return executeGuard(data, [action], true).
+                        then(function () {
+                            return execActionOnFulfill(
+                                        action,
+                                        data,
+                                        state,
+                                        fsm);
+                        });
+
+        case 'condition':
+            action = fsm.action(state, activity.action);
+            options = activity.options;
+            actions = [];
+            for (c = -1, l = options.length; l--;) {
+                actions[++c] = fsm.action(state, options[c]);
+            }
+            
+            return executeGuard(data, actions, true).
+                        then(function (action) {
+                            return execActionOnFulfill(
+                                        action,
+                                        data,
+                                        state,
+                                        fsm);
+                        });
+
+        case 'fork':
+            action = fsm.action(state, activity.action);
+            options = activity.options;
+            responses = {};
+            promises = [];
+            callback = function (action) {
+                return execActionOnFulfill(action, data, state, fsm).
+                        then(function (response) {
+                            responses[response.activity.name] = response;
+                        });
+            };
+            for (c = -1, l = options.length; l--;) {
+                promises[++c] = executeGuard(
+                        data,
+                        [fsm.action(state, options[c])],
+                        true).
+                    then(callback);
+            }
+            callback = null;
+            return (new PROMISE.all(promises)).
+                then(function () {
+                    return {
+                            activity: action,
+                            options: responses
+                        };
+                });
+        }
+
     },
     
     stop: function () {
         
     }
     
-    
-    //hasPendingProcess: function () {
-    //    var current = this.current;
-    //    
-    //    for (; current; current = current.next) {
-    //        if (current.processing()) {
-    //            return true;
-    //        }
-    //    }
-    //    
-    //    return false;
-    //},
-    //
-    //next: function (data) {
-    //    
-    //    var me = this,
-    //        current = me.current,
-    //        fsm = me.fsm,
-    //        activity = ACTIVITY,
-    //        processor = PROCESSOR;
-    //        
-    //    var state, config;
-    //    
-    //    // do not proceed if there are pending process
-    //    if (me.hasPendingProcess()) {
-    //        return new PROMISE(function (resolve) {
-    //            var p = processor,
-    //                subscriptions = [
-    //                    p.subscribe('complete', execOnNoPending),
-    //                    p.subscribe('cancel', execOnNoPending),
-    //                    p.subscribe('before-kill', execOnNoPending)
-    //                ];
-    //                
-    //            function execOnNoPending() {
-    //                var list = subscriptions;
-    //                var l, len;
-    //                if (!me.hasPendingProcess()) {
-    //                    
-    //                    // remove event listener
-    //                    for (l = len = list.length; l--;) {
-    //                        list[l]();
-    //                    }
-    //                    list.splice(0, len);
-    //                    resolve(me.next(data));
-    //                }
-    //            }
-    //        });
-    //    }
-    //    
-    //    
-    //        
-    //    //var config, action, guard, promise, request;
-    //    //    
-    //    //if (!current) {
-    //    //    this.current = current = {
-    //    //        state: fsm.start,
-    //    //        data: null
-    //    //    };
-    //    //}
-    //    //
-    //    //config = fsm.lookup(current.state);
-    //    //
-    //    //switch (config.type) {
-    //    //case 'link':
-    //    //    action = activity(config.target);
-    //    //    
-    //    //    return executeGuard(data, [action], true).
-    //    //                then(function () {
-    //    //                    console.log('action ready ', action); 
-    //    //                    //return executeAction(data, action);
-    //    //                });
-    //    //
-    //    //case 'condition':
-    //    //}
-    //    //
-    //    //
-    //    //
-    //    //
-    //    //console.log(config);
-    //    //
-    //    //
-    //    
-    //}
 };
 
 

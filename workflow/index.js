@@ -21,7 +21,7 @@ var workflow = DEFINE('createUser').
                 
                 console.log(' guard! ', data);
                 
-                return require('bluebird').reject('buang!');
+                return data;//require('bluebird').reject('buang!');
                 
             }).
             handler(function (data) {
@@ -34,13 +34,19 @@ var workflow = DEFINE('createUser').
                 console.log('rendering!');
             }).
             
-        condition(
+        fork(
             DEFINE('renderedToHTML').
-                
-                action('renderDom1'),
+                action('renderDom1').
+                    guard(function () {
+                        //console.log('you cannot pass renderDom1');
+                        //return require('bluebird').reject('no!');
+                    }),
                 
             DEFINE('failedRender').
-                action('renderDom'),
+                action('renderDom').
+                    guard(function () {
+                        return 'good!';
+                    }),
                 
             DEFINE('buang').
                 condition(
@@ -81,5 +87,11 @@ console.log('workflow ',
 //console.log('lookup: ', fsm.lookup('state4'));
 
 
-session.next('diko');
+session.exec('state4', 'diko').
+    then(function (data) {
+        console.log(data);
+    },
+    function () {
+        console.log('failed!');
+    });
 

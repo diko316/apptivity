@@ -25,7 +25,7 @@ function Activity(type, name) {
     this.type = type;
     this.id = id;
     this.name = name;
-    this.desc = id + '[' + name + ']';
+    this.desc = ':' + name;
     
 }
 
