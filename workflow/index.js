@@ -87,9 +87,20 @@ console.log('workflow ',
 //console.log('lookup: ', fsm.lookup('state4'));
 
 
-session.exec('state4', 'diko').
+session.exec('state5', 'diko').
     then(function (data) {
-        console.log(data);
+        console.log('success ',
+            data.activity,
+            data.response);
+    },
+    function () {
+        console.log('failed!');
+    });
+    
+    
+session.exec('state8', 'diko').
+    then(function (data) {
+        console.log('success ', data);
     },
     function () {
         console.log('failed!');

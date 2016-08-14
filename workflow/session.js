@@ -129,13 +129,17 @@ Session.prototype = {
     constructor: Session,
     
     exec: function (state, data) {
-        var fsm = this.fsm,
-            activity = fsm.lookup(state);
+        var me = this,
+            fsm = me.fsm,
+            activity = fsm.lookup(state),
+            mgr = ACTIVITY,
+            Promise = PROMISE;
             
         var action, actions, options, c, l, responses, promises, callback;
         
         if (!activity) {
-            throw new Error('No activity found in state: ' + state);
+            return Promise.reject(
+                    new Error('No activity found in state: ' + state));
         }
         
         switch (activity.type) {
@@ -152,7 +156,7 @@ Session.prototype = {
                         });
 
         case 'condition':
-            action = fsm.action(state, activity.action);
+            action = mgr(activity.action);
             options = activity.options;
             actions = [];
             for (c = -1, l = options.length; l--;) {
@@ -169,7 +173,7 @@ Session.prototype = {
                         });
 
         case 'fork':
-            action = fsm.action(state, activity.action);
+            action = mgr(activity.action);
             options = activity.options;
             responses = {};
             promises = [];
@@ -187,15 +191,35 @@ Session.prototype = {
                     then(callback);
             }
             callback = null;
-            return (new PROMISE.all(promises)).
+            return Promise.all(promises).
                 then(function () {
                     return {
                             activity: action,
-                            options: responses
+                            request: data,
+                            response: responses
                         };
                 });
+        case 'end':
+            return Promise.resolve({
+                        activity: mgr.end,
+                        from: state,
+                        to: null,
+                        request: data,
+                        response: data
+                    });
         }
+        
+        return Promise.reject(new Error('Unidentified activity'));
 
+    },
+    
+    start: function (data) {
+        var me = this;
+        
+        function run() {
+            
+        }
+        
     },
     
     stop: function () {

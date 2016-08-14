@@ -127,17 +127,19 @@ Fsm.prototype = {
                     
                     state.action = {
                         type: activity.type,
-                        action: activity.desc,
+                        target: activity.desc,
+                        action: activity.id,
                     };
                     
                     state.options = right.options;
                     
                 }
                 else {
-                    
+                    activity = right.pointer.item;
                     state.action = {
                         type: 'link',
-                        target: right.pointer.item.desc
+                        action: activity.id,
+                        target: activity.desc
                     };
                     
                 }
@@ -280,10 +282,11 @@ Fsm.prototype = {
                     states[state.id] = state;
                     pointer.from = state;
                     fragment.state = state;
-                    
+                    activity = pointer.item;
                     state.action = {
                         type: 'link',
-                        target: pointer.item.desc
+                        action: activity.id,
+                        target: activity.desc
                     };
                 }
                 
@@ -348,6 +351,7 @@ Fsm.prototype = {
                             
                             index[target] = {
                                 type: 'link',
+                                action: left.item.id,
                                 target: target,
                                 entry: id
                             };
