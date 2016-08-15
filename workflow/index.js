@@ -34,28 +34,28 @@ var workflow = DEFINE('createUser').
                 console.log('rendering!');
             }).
             
-        fork(
+        condition(
             DEFINE('renderedToHTML').
                 action('renderDom1').
                     guard(function () {
                         //console.log('you cannot pass renderDom1');
-                        //return require('bluebird').reject('no!');
+                        return require('bluebird').reject('no!');
                     }),
                 
             DEFINE('failedRender').
                 action('renderDom').
                     guard(function () {
                         return 'good!';
-                    }),
+                    })
                 
-            DEFINE('buang').
-                condition(
-                    DEFINE('buangyes').
-                        action('yesaction'),
-                    DEFINE('buangno').
-                        action('noaction')
-                ).
-                action('finalBuang')
+            //DEFINE('buang').
+            //    condition(
+            //        DEFINE('buangyes').
+            //            action('yesaction'),
+            //        DEFINE('buangno').
+            //            action('noaction')
+            //    ).
+            //    action('finalBuang')
                 
         ).
         action('last');
@@ -87,22 +87,30 @@ console.log('workflow ',
 //console.log('lookup: ', fsm.lookup('state4'));
 
 
-session.exec('state5', 'diko').
+//session.guard(session.fsm.start, session.fsm.startAction);
+
+
+session.exec('state3', ':choice1', 'buang').
     then(function (data) {
-        console.log('success ',
-            data.activity,
-            data.response);
-    },
-    function () {
-        console.log('failed!');
+        console.log('found? ', data);
     });
-    
-    
-session.exec('state8', 'diko').
-    then(function (data) {
-        console.log('success ', data);
-    },
-    function () {
-        console.log('failed!');
-    });
+
+//session.exec('state5', 'diko').
+//    then(function (data) {
+//        console.log('success ',
+//            data.activity,
+//            data.response);
+//    },
+//    function () {
+//        console.log('failed!');
+//    });
+//    
+//    
+//session.exec('state8', 'diko').
+//    then(function (data) {
+//        console.log('success ', data);
+//    },
+//    function () {
+//        console.log('failed!');
+//    });
 
