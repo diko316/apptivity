@@ -214,11 +214,22 @@ Session.prototype = {
     },
     
     start: function (data) {
-        var me = this;
+        var me = this,
+            processes = {
+                state: me.fsm.start,
+                request: data,
+                previous: null,
+                next: null
+            };
         
-        function run() {
+        function run(process) {
+            
+            
+            
             
         }
+        
+        run(processes);
         
     },
     
