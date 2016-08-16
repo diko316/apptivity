@@ -26,36 +26,42 @@ var workflow = DEFINE('createUser').
             }).
             handler(function (data) {
                 console.log('handler ', data);
+                return data;
             }).
             
         action('render').
             describe('rendering form').
-            handler(function () {
+            handler(function (data) {
                 console.log('rendering!');
+                return data;
             }).
             
-        condition(
+        fork(
             DEFINE('renderedToHTML').
                 action('renderDom1').
                     guard(function () {
                         //console.log('you cannot pass renderDom1');
-                        return require('bluebird').reject('no!');
+                        //return require('bluebird').reject('no!');
                     }),
                 
             DEFINE('failedRender').
                 action('renderDom').
                     guard(function () {
                         return 'good!';
-                    })
+                    }),
+                    
+            //DEFINE('sudden').
+            //    end('renderDom')
                 
-            //DEFINE('buang').
-            //    condition(
-            //        DEFINE('buangyes').
-            //            action('yesaction'),
-            //        DEFINE('buangno').
-            //            action('noaction')
-            //    ).
-            //    action('finalBuang')
+            DEFINE('buang').
+                condition(
+                    DEFINE('buangyes').
+                        action('yesaction'),
+                    DEFINE('buangno').
+                        action('noaction')
+                ).
+                action('finalBuang')
+                
                 
         ).
         action('last');
@@ -90,10 +96,19 @@ console.log('workflow ',
 //session.guard(session.fsm.start, session.fsm.startAction);
 
 
-session.exec('state3', ':choice1', 'buang').
-    then(function (data) {
-        console.log('found? ', data);
-    });
+session.next({
+    state8: {
+        name: 'diko',
+        value: 'test'
+    }
+});
+
+
+
+//session.exec('state5', ':fork1', 'buang').
+//    then(function (data) {
+//        console.log('found? ', data);
+//    });
 
 //session.exec('state5', 'diko').
 //    then(function (data) {

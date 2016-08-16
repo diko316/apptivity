@@ -30,7 +30,8 @@ function Fsm(definition) {
     this.map = {};
    
     this.actions = {};
-    this.guards = {};
+    this.merges = {};
+    this.directions = {};
     
     this.populateStates(definition);
 }
@@ -41,7 +42,7 @@ Fsm.prototype = {
     start: void(0),
     ends: void(0),
     actions: void(0),
-    guards: void(0),
+    merges: void(0),
     
     generateState: function (before, pointer) {
         var id = 'state' + (++STATE_GEN_ID);
@@ -57,9 +58,13 @@ Fsm.prototype = {
         var map = this.map,
             ends = this.ends,
             actions = this.actions,
+            merges = this.merges,
+            directions = this.directions,
             mgr = ACTIVITY,
             endId = mgr.end.id,
-            queue = definition.config.queue,
+            queue = definition.config.queue.concat(
+                [endId, '.']
+            ),
             c = -1,
             l = queue.length,
             stack = null,
@@ -67,9 +72,9 @@ Fsm.prototype = {
             endState = null,
             states = {};
             
-        var item, left, right, pointer, options, option, ol, index,
-            actionId, stateId, id, state, target, end, fragment, transition,
-            activity, action, merges, start;
+        var item, left, right, pointer, options, option, ol, actionId, stateId,
+            id, state, target, end, fragment, transition,
+            activity, action, pid;
         
         for (; l--;) {
             item = queue[++c];
@@ -129,7 +134,6 @@ Fsm.prototype = {
                     
                     state.action = {
                         type: activity.type,
-                        target: activity.desc,
                         action: activity.id
                     };
                     
@@ -294,7 +298,6 @@ Fsm.prototype = {
                 }
                 
                 this.start = state.id;
-                this.startAction = state.pointer.item.desc;
                 
                 // create end state
                 end = fragment.end;
@@ -327,6 +330,14 @@ Fsm.prototype = {
                 for (; monitored; monitored = monitored.before) {
                     state = monitored.id;
                     
+                    //directions
+                    action = monitored.action;
+                    directions[state] = {
+                        type: action.type,
+                        target: action.target || null
+                    };
+                    //console.log(state + ' > ', action);
+                    
                     // create mapped states
                     pointer = monitored.pointer;
                     transition = map[state];
@@ -339,7 +350,7 @@ Fsm.prototype = {
                                     pointer.item.name +
                                     ']');
                         }
-                        id = transition[id] = pointer.to;
+                        transition[id] = pointer.to;
                         
                         // action definitions
                         id = state + ' > ' + pointer.item.desc;
@@ -351,30 +362,27 @@ Fsm.prototype = {
                         
                     }
                     
-                    //activity = null;
-                    //if (monitored.action) {
-                    //    actions[state] = activity = monitored.action;
-                    //}
-                    
                     // create target and options
                     if (monitored.options) {
                         
                         //console.log(monitored.origin);
                         target = monitored.origin;
                         
-                        index = {};
-                        options = [];
+                        
+                        directions[state].target = options = [];
                         ol = 0;
                         pointer = monitored.pointer;
-                        id = target.from.id + ' > ' + target.item.desc;
-                        console.log('applied options to ', id);
+                        stateId = target.from.id;
+                        actionId = target.item.desc;
+                        id = stateId + ' > ' + actionId;
+                        pid = stateId + actionId;
+                        
                         if (id in actions) {
-                            actions[id].options = options;
+                            action = actions[id];
+                            action.options = options;
+                            action.process = pid;
                         }
                         
-                        
-                        //activity.options = options;
-                        //activity.index = index;
                         option = monitored.options;
                         
                         for (; option; option = option.next) {
@@ -385,41 +393,27 @@ Fsm.prototype = {
                             // create options
                             options[ol++] = target;
                             
-                            // create wait entry
-                            //id = left.from.id + ' > ' + target;
-                            //
-                            //index[target] = {
-                            //    type: 'link',
-                            //    action: left.item.id,
-                            //    target: target,
-                            //    entry: id
-                            //};
-                            //
-                            //// create wait exit
-                            //for (; right; right = right.next) {
-                            //    
-                            //    pointer = right.pointer;
-                            //    actionId = pointer.item.desc;
-                            //    stateId = pointer.from.id;
-                            //    //end = stateId + ' > ' + actionId;
-                            //    
-                            //    action = states[stateId].action;
-                            //    
-                            //    if (action.options) {
-                            //        action = action.index[actionId];
-                            //    }
-                            //    
-                            //    merges = action.merges;
-                            //    if (!merges) {
-                            //        action.merges = merges = {};
-                            //    }
-                            //    
-                            //    merges[id] = activity.action;
-                            //}
+                            // create push actions
+                            id = left.from.id + ' > ' + target;
+                            
+                            // create wait exit
+                            for (; right; right = right.next) {
+                                
+                                pointer = right.pointer;
+                                actionId = pointer.item.desc;
+                                stateId = pointer.from.id;
+                                
+                                merges[
+                                    stateId + ' > ' + actionId
+                                ] = {
+                                    target: target,
+                                    pid: pid
+                                };
+
+                            }
+                            
                         }
                     }
-                    
-                    
 
                 }
             }
@@ -432,13 +426,14 @@ Fsm.prototype = {
         
     },
     
-    lookup: function (state, action) {
-        var actions = this.actions;
+    info: function (state, action) {
+        var actions = this.actions,
+            merges = this.merges;
         var id, definition, activity;
         
         if (typeof state === 'string' && typeof action === 'string') {
             id = state + ' > ' + action;
-            //console.log('lookup: ', state, ' > ', action);
+            
             if (id in actions) {
                 
                 definition = actions[id];
@@ -448,98 +443,23 @@ Fsm.prototype = {
                     state: this.map[state][action],
                     action: activity,
                     guard: activity.guard || false,
-                    hander: activity.handler || false,
-                    options: definition.options
+                    handler: activity.handler || false,
+                    process: definition.process || false,
+                    options: definition.options || false,
+                    merge: id in merges ? merges[id] : void(0)
                 };
             }
         }
         return void(0);
     },
     
-    guard: function (state, action) {
-        var activity = this.action(state, action);
-        
-        if (activity) {
-            return activity.guard || false;
+    lookup: function (state) {
+        var directions = this.directions;
+        if (typeof state === 'string' && state in directions) {
+            return directions[state];
         }
-        return void(0);
-    },
-    
-    action: function (state, action) {
-        var actions = this.actions;
-        var id;
-        
-        if (typeof state === 'string' && typeof action === 'string') {
-            id = state + ' > ' + action;
-            if (id in actions) {
-                return ACTIVITY(actions[id].actionId);
-            }
-        }
-        return void(0);
-    },
-    
-    transition: function (state, action) {
-        var map = this.map;
-        var transition;
-        
-        if (typeof state === 'string' && typeof action === 'string' &&
-            state in map) {
-            transition = map[state];
-            
-            if (action in transition) {
-                return transition[action];
-            }
-        }
-        
         return void(0);
     }
-    
-    //lookup: function (state) {
-    //    var actions = this.actions;
-    //    
-    //    if (typeof state === 'string' && state in actions) {
-    //        return actions[state];
-    //    }
-    //    return void(0);
-    //},
-    
-    
-    
-    
-    
-    //target: function (state, actionId) {
-    //    var map = this.map;
-    //    var transition;
-    //    
-    //    if (typeof state === 'string' &&
-    //        typeof actionId === 'string' &&
-    //        state in map) {
-    //
-    //        transition = map[state];
-    //        
-    //        if (actionId in transition) {
-    //            return transition[actionId];
-    //        }
-    //    }
-    //    
-    //    return void(0);
-    //},
-    //
-    //action: function (state, actionId) {
-    //    var actions = this.actions;
-    //    var id;
-    //    
-    //    if (typeof state === 'string' && typeof actionId === 'string') {
-    //        id = state + ' > ' + actionId;
-    //        if (id in actions) {
-    //            return ACTIVITY(actions[id].actionId);
-    //        }
-    //    }
-    //    
-    //    return void(0);
-    //    
-    //}
-    
     
 };
 

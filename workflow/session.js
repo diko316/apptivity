@@ -8,110 +8,10 @@ var FSM = require('./fsm.js'),
     
 // TODO: create processor
 
-//
 function EMPTY() {
     
 }
-//
-//
-//function createGuardCallback(action, resolver) {
-//    var guard = action.guard;
-//    return function (data) {
-//        return PROMISE.resolve(guard(data)).
-//                then(function () {
-//                        return resolver(action, data, true, null);
-//                    },
-//                    function (e) {
-//                        return resolver(action, data, false, e);
-//                    });
-//    };
-//}
-//
-//function createUnguardedCallback(action, resolver) {
-//    return function (data) {
-//        return PROMISE.resolve(data).
-//                then(function (data) {
-//                        return resolver(action, data, true);
-//                    });
-//    };
-//}
-//
-//
-//function executeGuard(data, actions) {
-//    var len = actions.length;
-//
-//    return new PROMISE(function (resolve, reject) {
-//        var create = createGuardCallback,
-//            createUnguarded = createUnguardedCallback,
-//            l = len,
-//            c = -1,
-//            processed = 0,
-//            unguarded = [],
-//            ul = 0,
-//            promise = PROMISE.resolve(data),
-//            resolved = false;
-//            
-//        var action;
-//        
-//        function resolver(action, data, success, errorMessage) {
-//            var all = len,
-//                count = ++processed;
-//            
-//            if (success) {
-//                resolved = true;
-//                resolve(action);
-//            }
-//            else if (count === all) {
-//                resolved = true;
-//                reject(errorMessage);
-//            }
-//            
-//            return resolved ?
-//                    PROMISE.reject(new Error()) : data;
-//        }
-//        
-//        // resolve guarded
-//        for (; !resolved && l--;) {
-//            action = actions[++c];
-//            if (action.guard) {
-//                promise = promise.then(create(action, resolver));
-//            }
-//            else {
-//                unguarded[ul++] = action;
-//            }
-//        }
-//        
-//        // unguarded last priority
-//        for (c = -1, l = ul; !resolved && l--;) {
-//            promise = promise.
-//                        then(createUnguarded(unguarded[++c], resolver));
-//        }
-//        
-//        promise.catch(EMPTY);
-//        
-//    });
-//}
-//
-//function execActionOnFulfill(action, data, state, fsm) {
-//    var to = fsm.target(state, action.desc);
-//    
-//    return PROMISE.resolve(data).
-//                then(function () {
-//                    var handler = action.handler;
-//                    return handler ?
-//                                handler(data) : data;
-//                }).
-//                then(function (response) {
-//                    return {
-//                        activity: action,
-//                        from: state,
-//                        to: to,
-//                        request: data,
-//                        response: response
-//                    };
-//                });
-//    
-//}
+
 
 
 function Session(fsm) {
@@ -125,11 +25,18 @@ function Session(fsm) {
 Session.prototype = {
     id: void(0),
     fsm: void(0),
-    current: null,
+    frame: null,
     constructor: Session,
     
+    STATUS_UNINTIALIZED: 0,
+    STATUS_READY: 1,
+    STATUS_RUNNING: 2,
+    STATUS_WAIT: 3,
+    STATUS_SUCCESS: 4,
+    STATUS_FAIL: 5,
+    
     guard: function (state, action, data) {
-        var activity = this.fsm.lookup(state, action),
+        var activity = this.fsm.info(state, action),
             Promise = PROMISE;
         var guard, promise;
         
@@ -151,19 +58,23 @@ Session.prototype = {
     
     exec: function (state, action, data) {
         var me = this,
-            activity = me.fsm.lookup(state, action),
-            nextState = activity.state,
-            handler = activity.handler,
+            fsm = me.fsm,
             Promise = PROMISE;
-        var promise;
+            
+        var activity, nextState, handler, pid,
+            promise, promises, c, l, options, responses, callback;
         
-        
+        activity = fsm.info(state, action);
+        if (!activity) {
+            return Promise.reject('activity not found');
+        }
+        nextState = activity.state;
         action = activity.action;
         
         switch (action.type) {
         case 'action':
             promise = Promise.resolve(data);
-            
+            handler = activity.handler;
             if (handler) {
                 promise = promise.then(handler);
             }
@@ -177,6 +88,7 @@ Session.prototype = {
                         response: response
                     };
                 });
+        
         case 'condition':
             return (new Promise(function (resolve) {
                     var options = activity.options,
@@ -190,7 +102,7 @@ Session.prototype = {
                         unguarded = null,
                         empty = EMPTY;
                         
-                    var option, lookup;
+                    var option, info;
                     
                     function found(action) {
                         resolve(action);
@@ -205,12 +117,12 @@ Session.prototype = {
                     
                     for (; l--;) {
                         option = options[++c];
-                        lookup = fsm.lookup(state, option);
+                        info = fsm.info(state, option);
 
                         // make this last proprity
-                        if (!lookup.guard) {
+                        if (!info.guard) {
                             if (!unguarded) {
-                                unguarded = lookup.action;
+                                unguarded = info.action;
                             }
                             continue;
                         }
@@ -242,116 +154,134 @@ Session.prototype = {
                     then(function (action) {
                         return me.exec(nextState, action.desc, data);
                     });
-        case 'lookup':
+        
+        case 'fork':
+            options = activity.options;
+            responses = {};
+            promise = Promise.resolve(data);
+            promises = [];
+            callback = function (state, action, data) {
+                var name = action.substring(1, action.length);
+                return me.guard(state, action, data).
+                        then(function (action) {
+                            return me.exec(state, action.desc, data);
+                        }).
+                        then(function (data) {
+                            responses[name] = data;
+                        });
+            };
             
-            break;
+            for (c = -1, l = options.length; l--;) {
+                promises[++c] = callback(nextState, options[c], data);
+            }
+            
+            return Promise.all(promises).
+                    then(function () {
+                        return {
+                            activity: action,
+                            process: activity.process,
+                            options: options,
+                            from: state,
+                            to: nextState,
+                            request: data,
+                            response: responses
+                        };
+                    });
+        case 'end':
+            return Promise.resolve({
+                        activity: action,
+                        from: state,
+                        to: nextState,
+                        request: data,
+                        response: data
+                    });
         }
+        
+        return Promise.reject(
+                    'activity [' + activity.name + '] is bogus');
     },
     
+    before: function () {
+        
+    },
     
-    
-    //exec: function (state, data) {
-    //    var me = this,
-    //        fsm = me.fsm,
-    //        activity = fsm.lookup(state),
-    //        mgr = ACTIVITY,
-    //        Promise = PROMISE;
-    //        
-    //    var action, actions, options, c, l, responses, promises, callback;
-    //    
-    //    if (!activity) {
-    //        return Promise.reject(
-    //                new Error('No activity found in state: ' + state));
-    //    }
-    //    
-    //    switch (activity.type) {
-    //        
-    //    case 'link':
-    //        action = fsm.action(state, activity.target);
-    //        return executeGuard(data, [action], true).
-    //                    then(function () {
-    //                        return execActionOnFulfill(
-    //                                    action,
-    //                                    data,
-    //                                    state,
-    //                                    fsm);
-    //                    });
-    //
-    //    case 'condition':
-    //        action = mgr(activity.action);
-    //        options = activity.options;
-    //        actions = [];
-    //        for (c = -1, l = options.length; l--;) {
-    //            actions[++c] = fsm.action(state, options[c]);
-    //        }
-    //        
-    //        return executeGuard(data, actions, true).
-    //                    then(function (action) {
-    //                        return execActionOnFulfill(
-    //                                    action,
-    //                                    data,
-    //                                    state,
-    //                                    fsm);
-    //                    });
-    //
-    //    case 'fork':
-    //        action = mgr(activity.action);
-    //        options = activity.options;
-    //        responses = {};
-    //        promises = [];
-    //        callback = function (action) {
-    //            return execActionOnFulfill(action, data, state, fsm).
-    //                    then(function (response) {
-    //                        responses[response.activity.name] = response;
-    //                    });
-    //        };
-    //        for (c = -1, l = options.length; l--;) {
-    //            promises[++c] = executeGuard(
-    //                    data,
-    //                    [fsm.action(state, options[c])],
-    //                    true).
-    //                then(callback);
-    //        }
-    //        callback = null;
-    //        return Promise.all(promises).
-    //            then(function () {
-    //                return {
-    //                        activity: action,
-    //                        request: data,
-    //                        response: responses
-    //                    };
-    //            });
-    //    case 'end':
-    //        return Promise.resolve({
-    //                    activity: mgr.end,
-    //                    from: state,
-    //                    to: null,
-    //                    request: data,
-    //                    response: data
-    //                });
-    //    }
-    //    
-    //    return Promise.reject(new Error('Unidentified activity'));
-    //
-    //},
+    next: function (data) {
+        var me = this,
+            fsm = me.fsm,
+            currentFrame = me.frame,
+            processes = me.processes,
+            O = Object.prototype,
+            READY = me.STATUS_READY;
+            
+        var direction, state, hasOwn, callback, promises, pl, frame;
+        
+        if (O.toString.call(data) === '[object Object]') {
+            
+            if (!currentFrame) {
+                state = fsm.start;
+                direction = fsm.lookup(state);
+                processes = {};
+                
+                currentFrame = {
+                    status: READY,
+                    processes: {},
+                    previous: null,
+                    next: null
+                };
+                
+                currentFrame.processes[state] = {
+                    state: state,
+                    action: direction.target
+                };
+                
+            }
+            
+            processes = currentFrame.processes;
+            
+            // new frame
+            frame = currentFrame.next = me.frame = {
+                status: me.STATUS_UNINTIALIZED,
+                processes: {},
+                previous: currentFrame,
+                next: null
+            };
+
+            hasOwn = O.hasOwnProperty;
+            
+            callback = function (process, data) {
+                me.exec(process.state, process.action, data).
+                    then(function (data) {
+                        // create process to new frame
+                         console.log('processed ', data);
+                         
+                    });
+            };
+            
+            // run
+            pl = 0;
+            promises = [];
+            for (state in processes) {
+                
+                if (!hasOwn.call(processes, state)) {
+                    continue;
+                }
+                
+                if (!hasOwn.call(data, state)) {
+                    continue;
+                }
+                
+                promises[pl++] = callback(processes[state], data[state]);
+                
+            }
+            
+            return PROMISE.all(promises);
+
+        }
+        
+    },
     
     start: function (data) {
-        //var me = this,
-        //    processes = {
-        //        state: me.fsm.start,
-        //        request: data,
-        //        previous: null,
-        //        next: null
-        //    };
-        //
-        //function run(process) {
-        //    
-        //    
-        //    
-        //    
-        //}
-        //
-        //run(processes);
+        //this.next(data);
         
     },
     
