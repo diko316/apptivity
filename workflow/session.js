@@ -46,10 +46,10 @@ Session.prototype = {
                     });
         }
         
-        return Promise.reject('activity not found');
+        return Promise.reject('activity not found ' + state + ' > ' + action);
     },
     
-    exec: function (state, action, data) {
+    exec: function (state, action, data, guard) {
         var me = this,
             fsm = me.fsm,
             Promise = PROMISE;
@@ -66,7 +66,12 @@ Session.prototype = {
         
         switch (action.type) {
         case 'action':
-            promise = Promise.resolve(data);
+            promise = guard !== false ?
+                        me.guard(state, action.desc, data).
+                            then(function () {
+                                return data;
+                            }) : Promise.resolve(data);
+            
             handler = activity.handler;
             if (handler) {
                 promise = promise.then(handler);
@@ -145,7 +150,7 @@ Session.prototype = {
 
                 })).
                     then(function (action) {
-                        return me.exec(nextState, action.desc, data);
+                        return me.exec(nextState, action.desc, data, false);
                     });
         
         case 'fork':
@@ -155,10 +160,15 @@ Session.prototype = {
             promises = [];
             callback = function (state, action, data) {
                 var name = action.substring(1, action.length);
-                return me.guard(state, action, data).
-                        then(function (action) {
-                            return me.exec(state, action.desc, data);
-                        }).
+                //return me.guard(state, action, data).
+                //        then(function (action) {
+                //            return me.exec(state, action.desc, data);
+                //        }).
+                //        then(function (data) {
+                //            responses[name] = data;
+                //        });
+                        
+                return me.exec(state, action, data).
                         then(function (data) {
                             responses[name] = data;
                         });
@@ -174,6 +184,7 @@ Session.prototype = {
                             activity: action,
                             process: activity.process,
                             options: options,
+                            processState: activity.processState,
                             from: state,
                             to: nextState,
                             request: data,
@@ -216,6 +227,11 @@ Session.prototype = {
             frame.set(this.fsm.start, null);
             frame.load(data);
         }
+        else if (frame.end) {
+            console.log('stop at this point!');
+            return Promise.resolve(this.response);
+            
+        }
         else {
             currentFrame = frame;
             
@@ -241,9 +257,6 @@ Session.prototype = {
         }
         
         this.frame = frame;
-        
-        //frame.load(data);
-        //console.log('loaded data ', data);
         
         return frame.run();
         

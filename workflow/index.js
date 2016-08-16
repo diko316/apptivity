@@ -47,6 +47,7 @@ var workflow = DEFINE('createUser').
             DEFINE('failedRender').
                 action('renderDom').
                     guard(function () {
+                        console.log('guard! failedRender');
                         return 'good!';
                     })
                     
@@ -64,7 +65,10 @@ var workflow = DEFINE('createUser').
                 
                 
         ).
-        action('last');
+        action('last').
+            handler(function (data) {
+                return { name: 'end' };
+            });
 
 
 
@@ -107,12 +111,17 @@ session.next({
 }).then(function () {
     console.log(session.frame.request);
     return session.next();
+//}).then(function () {
+//    console.log(session.frame.request);
+//    return session.next();
+//}).then(function () {
+//    console.log(session.frame.request);
+//    return session.next();
 }).then(function () {
     console.log(session.frame.request);
     return session.next();
 }).then(function () {
-    console.log(session.frame.request);
-    return session.next();
+    console.log('frame? ', session.frame.end);
 });
 
 

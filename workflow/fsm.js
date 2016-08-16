@@ -382,6 +382,9 @@ Fsm.prototype = {
                             action.options = options;
                             action.process = pid;
                         }
+                        else {
+                            action = null;
+                        }
                         
                         option = monitored.options;
                         
@@ -389,6 +392,9 @@ Fsm.prototype = {
                             right = option.to;
                             left = option.from;
                             target = left.item.desc;
+                            if (action) {
+                                action.processState = right.pointer.to;
+                            }
                             
                             // create options
                             options[ol++] = target;
@@ -446,6 +452,7 @@ Fsm.prototype = {
                     handler: activity.handler || false,
                     process: definition.process || false,
                     options: definition.options || false,
+                    processState: definition.processState || false,
                     merge: id in merges ? merges[id] : void(0)
                 };
             }

@@ -20,13 +20,14 @@ Frame.prototype = {
     
     status: STATUS_UNINITIALIZED,
     error: false,
+    end: false,
     
     session: void(0),
     processes: void(0),
     request: void(0),
     response: null,
     data: null,
-    
+    mergers: null,
     previous: null,
     next: null,
     constructor: Frame,
@@ -158,6 +159,47 @@ Frame.prototype = {
         
     },
     
+    addMerger: function (id, options, state) {
+        var list = this.mergers;
+        if (!list) {
+            this.mergers = list = {};
+        }
+        list[id] = {
+            id: id,
+            complete: false,
+            state: state,
+            options: options.slice(0),
+            data: {}
+        };
+        return this;
+    },
+    
+    removeMerger: function (id, action, data) {
+        var list = this.mergers;
+        var item, options, index;
+        
+        if (id in list) {
+            item = list[id];
+            if (!item.complete) {
+                options = item.options;
+                index = options.indexOf(action);
+                if (index !== -1) {
+                    options.splice(index, 1);
+                    item.data[
+                        action.substring(1, action.length)
+                    ] = data;
+                    if (!options.length) {
+                        item.complete = true;
+                        this.response[item.state] = item.data;
+                        //console.log('completed! ', item);
+                    }
+                }
+                
+            }
+        }
+        return this;
+    },
+    
     createNext: function (override) {
         var me = this,
             response = this.response;
@@ -173,6 +215,7 @@ Frame.prototype = {
             frame = new Frame(me.session);
             this.next = frame;
             frame.previous = this;
+            frame.mergers = this.mergers;
             
             //console.log('loaded? ', override);
             
@@ -196,27 +239,38 @@ Frame.prototype = {
     saveResponse: function (process, data) {
         var saved = this.response,
             myData = this.data,
-            activity = data.activity;
-        var state, name, item, list, hasOwn;
+            merges = this.session.fsm.merges,
+            activity = data.activity,
+            joints = [],
+            jl = 0;
+        var state, name, item, list, hasOwn, joint, merge, id;
+        
+        joints[jl++] = {
+            id: data.from + ' > ' + activity.desc,
+            data: data.response
+        };
+            
         switch (activity.type) {
         case 'action':
             // create next process
             state = data.from;
             process.response = myData[state] = data;
             saved[data.to] = data.response;
+            
             break;
         case 'condition':
-            console.log('condition! ', data.from, ':' , activity.desc,' > ', data.to);
+            
+            //console.log('condition! ', data.from, ':' , activity.desc,' > ', data.to);
+            
             break;
         case 'fork':
-            console.log('fork! ', data.from, ':' , activity.desc,' > ', data.to);
-            console.log('********');
-            console.log(data);
-            console.log('********');
+            //console.log('fork! ', data.from, ':' , activity.desc,' > ', data.to);
             
             state = data.from;
             process.response = myData[state] = data;
             
+            
+            this.addMerger(data.process, data.options, data.processState);
             
             hasOwn = Object.prototype.hasOwnProperty;
             list = data.response;
@@ -224,12 +278,28 @@ Frame.prototype = {
                 if (hasOwn.call(list, name)) {
                     item = list[name];
                     saved[item.to] = item.response;
+                    joints[jl++] = {
+                        id: item.from + ' > ' + item.activity.desc,
+                        data: item.response
+                    };
                 }
             }
+            
             break;
         case 'end':
-            console.log('ended! ', data.from, ':' , activity.desc,' > ', data.to);
+            this.end = true;
+            //console.log('ended! ', data.from, ':' , activity.desc,' > ', data.to);
             break;
+        }
+        
+        
+        for (; jl--;) {
+            joint = joints[jl];
+            id = joint.id;
+            if (id in merges) {
+                merge = merges[id];
+                this.removeMerger(merge.pid, merge.target, joint.data);
+            }
         }
         
         //console.log(state, ' = ', data);
