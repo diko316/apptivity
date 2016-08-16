@@ -1,8 +1,8 @@
 'use strict';
 
 var FSM = require('./fsm.js'),
-    PROCESSOR = require('./processor.js'),
-    ACTIVITY = require('../define/activity.js'),
+    FRAME = require('./frame.js'),
+    //ACTIVITY = require('../define/activity.js'),
     PROMISE = require('bluebird'),
     SESSION_GEN_ID = 0;
     
@@ -27,13 +27,6 @@ Session.prototype = {
     fsm: void(0),
     frame: null,
     constructor: Session,
-    
-    STATUS_UNINTIALIZED: 0,
-    STATUS_READY: 1,
-    STATUS_RUNNING: 2,
-    STATUS_WAIT: 3,
-    STATUS_SUCCESS: 4,
-    STATUS_FAIL: 5,
     
     guard: function (state, action, data) {
         var activity = this.fsm.info(state, action),
@@ -61,7 +54,7 @@ Session.prototype = {
             fsm = me.fsm,
             Promise = PROMISE;
             
-        var activity, nextState, handler, pid,
+        var activity, nextState, handler,
             promise, promises, c, l, options, responses, callback;
         
         activity = fsm.info(state, action);
@@ -201,86 +194,62 @@ Session.prototype = {
                     'activity [' + activity.name + '] is bogus');
     },
     
-    before: function () {
-        
-    },
-    
     next: function (data) {
-        var me = this,
-            fsm = me.fsm,
-            currentFrame = me.frame,
-            processes = me.processes,
-            O = Object.prototype,
-            READY = me.STATUS_READY;
-            
-        var direction, state, hasOwn, callback, promises, pl, frame;
         
-        if (O.toString.call(data) === '[object Object]') {
+        var Promise = PROMISE,
+            Frame = FRAME,
+            frame = this.frame,
+            hasData = !!arguments.length;
+        var currentFrame;
+        
+        if (!hasData) {
+            data = {};
+        }
+        
+        if (Object.prototype.toString.call(data) !== '[object Object]') {
+            return Promise.reject(new Error('invalid data'));
+        }
+        
+        // create one
+        if (!frame) {
+            frame = new Frame(this);
+            frame.set(this.fsm.start, null);
+            frame.load(data);
+        }
+        else {
+            currentFrame = frame;
             
-            if (!currentFrame) {
-                state = fsm.start;
-                direction = fsm.lookup(state);
-                processes = {};
-                
-                currentFrame = {
-                    status: READY,
-                    processes: {},
-                    previous: null,
-                    next: null
-                };
-                
-                currentFrame.processes[state] = {
-                    state: state,
-                    action: direction.target
-                };
-                
+            if (!frame.allowNext()) {
+                return Promise.reject(new Error('current frame is locked'));
             }
             
-            processes = currentFrame.processes;
-            
-            // new frame
-            frame = currentFrame.next = me.frame = {
-                status: me.STATUS_UNINTIALIZED,
-                processes: {},
-                previous: currentFrame,
-                next: null
-            };
-
-            hasOwn = O.hasOwnProperty;
-            
-            callback = function (process, data) {
-                me.exec(process.state, process.action, data).
-                    then(function (data) {
-                        // create process to new frame
-                         console.log('processed ', data);
-                         
-                    });
-            };
-            
-            // run
-            pl = 0;
-            promises = [];
-            for (state in processes) {
-                
-                if (!hasOwn.call(processes, state)) {
-                    continue;
-                }
-                
-                if (!hasOwn.call(data, state)) {
-                    continue;
-                }
-                
-                promises[pl++] = callback(processes[state], data[state]);
-                
+            if (frame.next) {
+                frame = frame.next;
+                frame.load(hasData ? data : currentFrame.response);
+            }
+            else if (hasData) {
+                frame = frame.createNext(data);
+            }
+            else {
+                frame = frame.createNext();
             }
             
-            return PROMISE.all(promises);
+            if (!frame.allowRun()) {
+                return Promise.reject(new Error('current frame is locked'));
+            }
 
         }
         
+        this.frame = frame;
+        
+        //frame.load(data);
+        //console.log('loaded data ', data);
+        
+        return frame.run();
+        
     },
     
-    start: function (data) {
+    start: function () {
         //this.next(data);
         
     },

@@ -29,12 +29,12 @@ var workflow = DEFINE('createUser').
                 return data;
             }).
             
-        action('render').
-            describe('rendering form').
-            handler(function (data) {
-                console.log('rendering!');
-                return data;
-            }).
+        //action('render').
+        //    describe('rendering form').
+        //    handler(function (data) {
+        //        console.log('rendering!');
+        //        return data;
+        //    }).
             
         fork(
             DEFINE('renderedToHTML').
@@ -48,19 +48,19 @@ var workflow = DEFINE('createUser').
                 action('renderDom').
                     guard(function () {
                         return 'good!';
-                    }),
+                    })
                     
             //DEFINE('sudden').
             //    end('renderDom')
                 
-            DEFINE('buang').
-                condition(
-                    DEFINE('buangyes').
-                        action('yesaction'),
-                    DEFINE('buangno').
-                        action('noaction')
-                ).
-                action('finalBuang')
+            //DEFINE('buang').
+            //    condition(
+            //        DEFINE('buangyes').
+            //            action('yesaction'),
+            //        DEFINE('buangno').
+            //            action('noaction')
+            //    ).
+            //    action('finalBuang')
                 
                 
         ).
@@ -97,10 +97,22 @@ console.log('workflow ',
 
 
 session.next({
-    state8: {
+    state5: {
         name: 'diko',
         value: 'test'
     }
+}).then(function () {
+    console.log(session.frame.request);
+    return session.next();
+}).then(function () {
+    console.log(session.frame.request);
+    return session.next();
+}).then(function () {
+    console.log(session.frame.request);
+    return session.next();
+}).then(function () {
+    console.log(session.frame.request);
+    return session.next();
 });
 
 
