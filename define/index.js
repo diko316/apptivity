@@ -6,6 +6,7 @@ var DEFINITION = require('./definition.js');
 
 DEFINITION.
     register(require('./config/action.js')).
+    register(require('./config/input.js')).
     register(require('./config/describe.js')).
     register(require('./config/handler.js')).
     register(require('./config/guard.js')).

@@ -44,8 +44,7 @@ Activity.prototype = {
     constructor: Activity
 };
 
-END = create('end', 'stop');
-END.type = 'end';
+END = create('end', 'final');
 
 module.exports = get;
 get.create = create;

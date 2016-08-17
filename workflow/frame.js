@@ -159,7 +159,11 @@ Frame.prototype = {
                     }
                     
                     me.status = me.STATUS_COMPLETE;
-                    return me.response;
+                    
+                    //console.log('***************');
+                    //console.log('using response ', me.data);
+                    //console.log('***************');
+                    return me.data;
                 
                 }).
                 catch(function (error) {
@@ -194,7 +198,7 @@ Frame.prototype = {
     
     removeMerger: function (id, action, data) {
         var list = this.mergers,
-            response = this.response;
+            myData = this.data;
         var item, options, index, state;
         
         if (id in list) {
@@ -202,8 +206,8 @@ Frame.prototype = {
             state = item.state;
             
             // remove data from response
-            if (state in response) {
-                delete response[state];
+            if (state in myData) {
+                delete myData[state];
             }
             
             if (!item.complete) {
@@ -222,13 +226,13 @@ Frame.prototype = {
                     if (!options.length) {
                         item.complete = true;
                         item.frameEnd = this;
-                        response[state] = item.data;
+                        myData[state] = item.data;
                     }
                 }
             }
             // from rerun
             else if (item.frameEnd === this) {
-                response[state] = item.data;
+                myData[state] = item.data;
             }
             
         }
@@ -237,14 +241,16 @@ Frame.prototype = {
     
     createNext: function (override) {
         var me = this,
-            response = this.response;
+            data = this.data;
         var frame, state, hasOwn;
         
         if (me.status === me.STATUS_COMPLETE && !me.error) {
             
             if (!arguments.length) {
-                override = this.response;
+                override = this.data;
             }
+            
+            //console.log('***next frame data: ', data);
             
             
             frame = new Frame(me.session);
@@ -254,8 +260,8 @@ Frame.prototype = {
             
             // load
             hasOwn = Object.prototype.hasOwnProperty;
-            for (state in response) {
-                if (hasOwn.call(response, state)) {
+            for (state in data) {
+                if (hasOwn.call(data, state)) {
                     frame.set(state, null);
                 }
             }
@@ -270,7 +276,7 @@ Frame.prototype = {
     },
     
     saveResponse: function (process, data) {
-        var saved = this.response,
+        var response = this.response,
             myData = this.data,
             merges = this.session.fsm.merges,
             activity = data.activity,
@@ -290,33 +296,47 @@ Frame.prototype = {
             
         /* falls through */
         case 'action':
+        case 'input':
             // create next process
+            //console.log('!!!! action');
             state = data.from;
-            process.response = myData[state] = data;
-            saved[data.to] = data.response;
+            process.response = response[state] = data;
+            myData[data.to] = data.response;
+            //console.log(' data: ', this.data);
+            //console.log(' response: ', this.response);
+            //console.log('!!!!');
             break;
 
         case 'fork':
 
             state = data.from;
-            process.response = myData[state] = data;
+            process.response = response[state] = data;
             
+            //console.log('!!!! fork and save data');
             
             this.addMerger(data.process, data.options, data.processState);
             
             hasOwn = Object.prototype.hasOwnProperty;
             list = data.response;
+            //console.log('list: ', list);
+            //console.log('--------------------------------');
             for (name in list) {
                 if (hasOwn.call(list, name)) {
                     item = list[name];
-                    saved[item.to] = item.response;
+                    myData[item.to] = item.response;
                     joints[jl++] = {
                         id: item.from + ' > ' + item.activity.desc,
                         data: item.response
                     };
                 }
             }
-            
+            //console.log('joints: ', joints);
+            //console.log('--------------------------------');
+            //console.log(' data: ', this.data);
+            //console.log(' response: ', this.response);
+            //
+            //console.log('!!!!');
+            //
             break;
         }
         

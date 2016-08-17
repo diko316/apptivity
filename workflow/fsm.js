@@ -62,6 +62,7 @@ Fsm.prototype = {
             directions = this.directions,
             mgr = ACTIVITY,
             endId = mgr.end.id,
+            stopId = mgr.stop.id,
             queue = definition.config.queue.concat(
                 [endId, '.']
             ),
@@ -70,6 +71,7 @@ Fsm.prototype = {
             stack = null,
             monitored = null,
             endState = null,
+            stopState = null,
             states = {};
             
         var item, left, right, pointer, options, option, ol, actionId, stateId,
@@ -110,15 +112,16 @@ Fsm.prototype = {
                     pointer = fragment.pointer;
                     for (; pointer; pointer = pointer.next) {
                         // point to end state if it ended
-                        if (pointer.item.id === endId) {
-                            if (!endState) {
-                                endState = monitored = this.generateState(
+                        if (pointer.item.id === stopId) {
+                            if (!stopState) {
+                                stopState = monitored = this.generateState(
                                                             monitored);
-                                id = endState.id;
-                                states[id] = endState;
+                                id = stopState.id;
+                                states[id] = stopState;
                                 ends[id] = true;
-                                endState.action = {
-                                    type: 'end'
+                                stopState.action = {
+                                    type: 'end',
+                                    action: stopId
                                 };
                             }
                             pointer.to = endState.id;
@@ -315,7 +318,8 @@ Fsm.prototype = {
                             states[id] = endState;
                             ends[id] = true;
                             endState.action = {
-                                type: 'end'
+                                type: 'end',
+                                action: endId
                             };
                         }
                         pointer.to = endState.id;

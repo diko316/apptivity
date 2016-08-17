@@ -2,6 +2,7 @@
 
 var FSM = require('./fsm.js'),
     FRAME = require('./frame.js'),
+    EventEmitter = require('eventemitter3'),
     //ACTIVITY = require('../define/activity.js'),
     PROMISE = require('bluebird'),
     SESSION_GEN_ID = 0;
@@ -20,12 +21,14 @@ function Session(fsm) {
     }
     this.id = 'sid' + (++SESSION_GEN_ID);
     this.fsm = fsm;
+    this.event = new EventEmitter();
 }
 
 Session.prototype = {
     id: void(0),
     fsm: void(0),
     frame: null,
+    event: void(0),
     constructor: Session,
     
     guard: function (state, action, data) {
@@ -55,7 +58,7 @@ Session.prototype = {
             Promise = PROMISE;
             
         var activity, nextState, handler,
-            promise, promises, c, l, options, responses, callback;
+            promise, promises, c, l, options, responses, callback, returnObject;
         
         activity = fsm.info(state, action);
         if (!activity) {
@@ -65,6 +68,7 @@ Session.prototype = {
         action = activity.action;
         
         switch (action.type) {
+        case 'input':
         case 'action':
             promise = guard !== false ?
                         me.guard(state, action.desc, data).
@@ -72,19 +76,30 @@ Session.prototype = {
                                 return data;
                             }) : Promise.resolve(data);
             
-            handler = activity.handler;
-            if (handler) {
-                promise = promise.then(handler);
-            }
-            
-            return promise.then(function (response) {
-                    return {
+            returnObject = {
                         activity: action,
                         from: state,
                         to: nextState,
                         request: data,
-                        response: response
+                        response: void(0)
                     };
+            handler = activity.handler;
+            
+            if (handler) {
+                promise = promise.then(handler);
+            }
+            
+            // for input!
+            if (action.type === 'input') {
+                //console.log('listening input!');
+                //promise = promise.then(function () {
+                //    
+                //});
+            }
+            
+            return promise.then(function (response) {
+                    returnObject.response = response;
+                    return returnObject;
                 });
         
         case 'condition':
@@ -160,6 +175,7 @@ Session.prototype = {
             promises = [];
             callback = function (state, action, data) {
                 var name = action.substring(1, action.length);
+                
                 return me.exec(state, action, data).
                         then(function (data) {
                             responses[name] = data;

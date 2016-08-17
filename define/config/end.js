@@ -1,6 +1,10 @@
 'use strict';
 
-var END = require('../activity.js').end;
+//var END = require('../activity.js').end;
+var ACTIVITY = require('../activity.js');
+var END = ACTIVITY.create('end', 'stop');
+
+ACTIVITY.stop = END;
 
 module.exports = [
     'end',

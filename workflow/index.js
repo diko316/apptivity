@@ -19,7 +19,7 @@ var workflow = DEFINE('createUser').
             describe('this is a test').
             guard(function (data) {
                 
-                console.log(' guard! ', data);
+                console.log(' guard! ');//, data);
                 
                 return data;//require('bluebird').reject('buang!');
                 
@@ -44,7 +44,7 @@ var workflow = DEFINE('createUser').
                         //return require('bluebird').reject('no!');
                     }).
                     handler(function (data) {
-                        console.log('handler renderedToHTML', data);
+                        console.log('handler renderedToHTML');//, data);
                         return data;
                     }),
                 
@@ -55,7 +55,7 @@ var workflow = DEFINE('createUser').
                         return 'good!';
                     }).
                     handler(function (data) {
-                        console.log('handler failedRender', data);
+                        console.log('handler failedRender');//, data);
                         return data;
                     })
                     
@@ -74,10 +74,20 @@ var workflow = DEFINE('createUser').
                 
         ).
         
+        input('test-input').
+            handler(function (data) {
+                console.log('**********************');
+                console.log('prompting! ', data);
+                console.log('**********************');
+                return {
+                    name: 'prompt'
+                };
+            }).
+        
         action('last').
             handler(function (data) {
-                console.log('handler last', data);
-                return { name: 'end' };
+                console.log('handler last');//, data);
+                return { name: 'last' };
             });
 
 
@@ -111,32 +121,30 @@ console.log('workflow ',
 
 
 session.next({
-    state5: {
+    state6: {
         name: 'diko',
         value: 'test'
     }
-}).then(function () {
-    console.log(session.frame.request);
-    return session.next();
-}).then(function () {
-    console.log(session.frame.request);
-    return session.next();
-//}).then(function () {
-//    console.log(session.frame.request);
-//    return session.next();
-//}).then(function () {
-//    console.log(session.frame.request);
-//    return session.next();
 }).then(function (data) {
-    //console.log(session.frame.request, ' data: ', data);
-    console.log('before end data: ', data);
+    console.log(' *', data);
+    //console.log('   response: ', session.frame.response);
     return session.next();
 }).then(function (data) {
-    //console.log('frame? ', session.frame.end, session.frame);
+    console.log(' *', data);
+    //console.log('forked   response: ', session.frame.response);
+    return session.next();
+
+}).then(function (data) {
+    console.log('ended? ', session.frame.end);
+    console.log(' *', data);
     
-    return session.previous();
-}).then(function () {
-    console.log('after previous');
+    //console.log('after  response: ', session.frame.response);
+    return session.next();
+}).then(function (data) {
+    console.log('ended? ', session.frame.end);
+    console.log(' *', data);
+    
+    //console.log('after  response: ', session.frame.response);
 });
 
 
