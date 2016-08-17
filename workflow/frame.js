@@ -20,6 +20,7 @@ Frame.prototype = {
     
     status: STATUS_UNINITIALIZED,
     error: false,
+    start: false,
     end: false,
     
     session: void(0),
@@ -32,15 +33,21 @@ Frame.prototype = {
     next: null,
     constructor: Frame,
     
+    isComplete: function () {
+        return this.status === this.STATUS_COMPLETE;
+    },
+    
     allowRun: function () {
-        return this.status === this.STATUS_READY;
+        var me = this,
+            status = me.status;
+        return status === me.STATUS_READY || status === me.STATUS_COMPLETE;
     },
     
     allowNext: function () {
         return this.status === this.STATUS_COMPLETE && !this.error;
     },
     
-    load: function (data) {
+    load: function (data, rerun) {
         var hasOwn = Object.prototype.hasOwnProperty,
             processes = this.processes;
         var name;
@@ -50,6 +57,10 @@ Frame.prototype = {
                 hasOwn.call(processes, name)) {
                 this.set(name, data[name]);
             }
+        }
+        
+        if (rerun === true && this.status === this.STATUS_COMPLETE) {
+            this.state = this.STATUS_READY;
         }
         return this;
     },
@@ -86,10 +97,17 @@ Frame.prototype = {
             session = me.session,
             fsm = session.fsm;
             
-        var state, process, hasOwn, direction, promises, pl, callback;
+        var state, process, hasOwn, direction, promises, pl, callback, error;
+        
+        // rerun data and error if complete
+        if (me.status === me.STATUS_COMPLETE) {
+            error = me.error;
+            return error ?
+                        Promise.reject(error) : Promise.resolve(me.data);
+        }
         
         if (!me.allowRun()) {
-            return Promise.reject('Unable to run');
+            return Promise.reject('Unable to run at this state');
         }
         
         me.status = me.STATUS_PROCESSING;
@@ -117,14 +135,12 @@ Frame.prototype = {
             process = processes[state];
             
             direction = fsm.lookup(state);
-            switch (direction.type) {
-            case 'link':
+            if (direction.type === 'link') {
                 promises[pl++] = callback(state,
                                         direction.target,
                                         process.request);
                 
             }
-            //session
             
         }
         
@@ -143,7 +159,8 @@ Frame.prototype = {
                     }
                     
                     me.status = me.STATUS_COMPLETE;
-                    return me.data;
+                    return me.response;
+                
                 }).
                 catch(function (error) {
                     me.status = me.STATUS_COMPLETE;
@@ -167,6 +184,7 @@ Frame.prototype = {
         list[id] = {
             id: id,
             complete: false,
+            frameEnd: null,
             state: state,
             options: options.slice(0),
             data: {}
@@ -175,27 +193,44 @@ Frame.prototype = {
     },
     
     removeMerger: function (id, action, data) {
-        var list = this.mergers;
-        var item, options, index;
+        var list = this.mergers,
+            response = this.response;
+        var item, options, index, state;
         
         if (id in list) {
             item = list[id];
+            state = item.state;
+            
+            // remove data from response
+            if (state in response) {
+                delete response[state];
+            }
+            
             if (!item.complete) {
                 options = item.options;
                 index = options.indexOf(action);
                 if (index !== -1) {
+                    
                     options.splice(index, 1);
+                    
+                    // add to data
                     item.data[
                         action.substring(1, action.length)
                     ] = data;
+                    
+                    // merger has completed
                     if (!options.length) {
                         item.complete = true;
-                        this.response[item.state] = item.data;
-                        //console.log('completed! ', item);
+                        item.frameEnd = this;
+                        response[state] = item.data;
                     }
                 }
-                
             }
+            // from rerun
+            else if (item.frameEnd === this) {
+                response[state] = item.data;
+            }
+            
         }
         return this;
     },
@@ -216,8 +251,6 @@ Frame.prototype = {
             this.next = frame;
             frame.previous = this;
             frame.mergers = this.mergers;
-            
-            //console.log('loaded? ', override);
             
             // load
             hasOwn = Object.prototype.hasOwnProperty;
@@ -251,21 +284,20 @@ Frame.prototype = {
         };
             
         switch (activity.type) {
+        
+        case 'end':
+            this.end = true;
+            
+        /* falls through */
         case 'action':
             // create next process
             state = data.from;
             process.response = myData[state] = data;
             saved[data.to] = data.response;
-            
             break;
-        case 'condition':
-            
-            //console.log('condition! ', data.from, ':' , activity.desc,' > ', data.to);
-            
-            break;
+
         case 'fork':
-            //console.log('fork! ', data.from, ':' , activity.desc,' > ', data.to);
-            
+
             state = data.from;
             process.response = myData[state] = data;
             
@@ -286,10 +318,6 @@ Frame.prototype = {
             }
             
             break;
-        case 'end':
-            this.end = true;
-            //console.log('ended! ', data.from, ':' , activity.desc,' > ', data.to);
-            break;
         }
         
         
@@ -301,8 +329,7 @@ Frame.prototype = {
                 this.removeMerger(merge.pid, merge.target, joint.data);
             }
         }
-        
-        //console.log(state, ' = ', data);
+
     }
 };
 

@@ -160,14 +160,6 @@ Session.prototype = {
             promises = [];
             callback = function (state, action, data) {
                 var name = action.substring(1, action.length);
-                //return me.guard(state, action, data).
-                //        then(function (action) {
-                //            return me.exec(state, action.desc, data);
-                //        }).
-                //        then(function (data) {
-                //            responses[name] = data;
-                //        });
-                        
                 return me.exec(state, action, data).
                         then(function (data) {
                             responses[name] = data;
@@ -211,6 +203,7 @@ Session.prototype = {
             Frame = FRAME,
             frame = this.frame,
             hasData = !!arguments.length;
+            
         var currentFrame;
         
         if (!hasData) {
@@ -224,30 +217,33 @@ Session.prototype = {
         // create one
         if (!frame) {
             frame = new Frame(this);
+            frame.start = false;
             frame.set(this.fsm.start, null);
             frame.load(data);
         }
-        else if (frame.end) {
-            console.log('stop at this point!');
-            return Promise.resolve(this.response);
-            
-        }
-        else {
+        else if (!frame.end) {
+
             currentFrame = frame;
             
+            // go to next frame
             if (!frame.allowNext()) {
                 return Promise.reject(new Error('current frame is locked'));
             }
             
             if (frame.next) {
                 frame = frame.next;
-                frame.load(hasData ? data : currentFrame.response);
+                frame.load(
+                    arguments.length ?
+                        data : currentFrame.response);
+                
             }
             else if (hasData) {
                 frame = frame.createNext(data);
+                
             }
             else {
                 frame = frame.createNext();
+                
             }
             
             if (!frame.allowRun()) {
@@ -259,6 +255,37 @@ Session.prototype = {
         this.frame = frame;
         
         return frame.run();
+        
+    },
+    
+    previous: function (data) {
+        var frame = this.frame;
+        
+        if (!frame) {
+            return Promise.reject(
+                    new Error('no running frame found'));
+        }
+        else if (frame.start) {
+            return Promise.reject(
+                    new Error('current frame is already the first frame'));
+        }
+        else if (!frame.isComplete()) {
+            return Promise.reject(
+                    new Error('current frame is locked'));
+        
+        }
+        
+        this.frame = frame = frame.previous;
+        
+        if (arguments.length) {
+            frame.load(data);
+        }
+        
+        return frame.run();
+    
+    },
+    
+    play: function () {
         
     },
     

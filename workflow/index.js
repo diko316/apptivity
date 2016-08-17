@@ -25,7 +25,7 @@ var workflow = DEFINE('createUser').
                 
             }).
             handler(function (data) {
-                console.log('handler ', data);
+                console.log('handler requestForm', data);
                 return data;
             }).
             
@@ -42,6 +42,10 @@ var workflow = DEFINE('createUser').
                     guard(function () {
                         //console.log('you cannot pass renderDom1');
                         //return require('bluebird').reject('no!');
+                    }).
+                    handler(function (data) {
+                        console.log('handler renderedToHTML', data);
+                        return data;
                     }),
                 
             DEFINE('failedRender').
@@ -49,6 +53,10 @@ var workflow = DEFINE('createUser').
                     guard(function () {
                         console.log('guard! failedRender');
                         return 'good!';
+                    }).
+                    handler(function (data) {
+                        console.log('handler failedRender', data);
+                        return data;
                     })
                     
             //DEFINE('sudden').
@@ -65,8 +73,10 @@ var workflow = DEFINE('createUser').
                 
                 
         ).
+        
         action('last').
             handler(function (data) {
+                console.log('handler last', data);
                 return { name: 'end' };
             });
 
@@ -117,11 +127,16 @@ session.next({
 //}).then(function () {
 //    console.log(session.frame.request);
 //    return session.next();
-}).then(function () {
-    console.log(session.frame.request);
+}).then(function (data) {
+    //console.log(session.frame.request, ' data: ', data);
+    console.log('before end data: ', data);
     return session.next();
+}).then(function (data) {
+    //console.log('frame? ', session.frame.end, session.frame);
+    
+    return session.previous();
 }).then(function () {
-    console.log('frame? ', session.frame.end);
+    console.log('after previous');
 });
 
 
