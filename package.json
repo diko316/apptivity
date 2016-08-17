@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "bluebird": "^3.4.1",
+    "immutable": "^3.8.1",
     "interesting": "0.0.3"
   }
 }
