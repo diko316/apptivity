@@ -7,7 +7,36 @@ var FSM = require('./fsm.js'),
     PROMISE = require('bluebird'),
     SESSION_GEN_ID = 0;
     
-// TODO: create processor
+function setPrompt(session, activity) {
+    var mgr = ACTIVITY,
+        fields = session.fields,
+        prompts = session.prompts;
+    var id;
+    
+    if (typeof activity === 'string') {
+        activity = mgr(activity);
+    }
+    
+    if (!mgr.is(activity)) {
+        throw new Error('Invalid [activity] parameter');
+    }
+    
+    if (activity.type !== 'input') {
+        throw new Error(
+                '[' + activity.name + '] is not an input activity');
+    }
+    
+    id = activity.id;
+    
+    if (Object.prototype.hasOwnProperty.call(prompts, id)) {
+        throw new Error(
+                '[' + activity.name + '] is already registered prompt');
+    }
+    
+    fields[fields.length] = id;
+    prompts[id] = activity;
+    return session;
+}
 
 function EMPTY() {
     
@@ -103,16 +132,15 @@ Session.prototype = {
                             event = scope.event;
                         
                         function onAnswer(id, value) {
-                            console.log('on answer? ', id, ' value: ', value);
                             if (id === action.id) {
                                 event.removeListener('answer', onAnswer);
                                 resolve(value);
                             }
                         }
                         
-                        scope.setPrompt(action);
+                        setPrompt(scope, action);
                         event.on('answer', onAnswer);
-                        console.log('waiting!');
+                        event.emit('prompt', action.name);
                         
                     });
                     
@@ -239,7 +267,8 @@ Session.prototype = {
         
         var Promise = PROMISE,
             Frame = FRAME,
-            frame = this.frame,
+            me = this,
+            frame = me.frame,
             hasData = !!arguments.length;
             
         var currentFrame;
@@ -254,9 +283,9 @@ Session.prototype = {
         
         // create one
         if (!frame) {
-            frame = new Frame(this);
+            frame = new Frame(me);
             frame.start = false;
-            frame.set(this.fsm.start, null);
+            frame.set(me.fsm.start, null);
             frame.load(data);
         }
         else if (!frame.end) {
@@ -290,7 +319,7 @@ Session.prototype = {
 
         }
         
-        this.frame = frame;
+        me.frame = frame;
         
         return frame.run();
         
@@ -328,56 +357,38 @@ Session.prototype = {
     },
     
     stop: function () {
-        
-    },
-    
-    answer: function (id, value) {
-        var fields = this.fields,
-            prompts = this.prompts;
-        var activity, index;
-        
-        console.log('answering! ', id, ' in ', fields, ' listeners? ', this.event.listeners('answer'));
-        
-        if (Object.prototype.hasOwnProperty.call(prompts, id)) {
-            index = fields.indexOf(id);
-            activity = prompts[id];
-            // remove answered prompts
-            this.event.emit('answer', id, value);
-            
+        var me = this;
+        for (; me.frame;) {
+            me.frame.destroy();
         }
-        
         return this;
     },
     
-    setPrompt: function (activity) {
-        var mgr = ACTIVITY,
-            fields = this.fields,
-            prompts = this.prompts;
+    answer: function (desc, value) {
+        var me = this,
+            fields = me.fields,
+            promptIds = me.fsm.prompts,
+            prompts = me.prompts,
+            hasOwn = Object.prototype.hasOwnProperty;
         var id;
         
-        if (typeof activity === 'string') {
-            activity = mgr(activity);
+        if (desc && typeof desc === 'string') {
+            desc = ':' + desc;
+            
+            if (desc in promptIds) {
+                id = promptIds[desc];
+
+                if (hasOwn.call(prompts, id)) {
+                    // remove answered prompts
+                    fields.splice(fields.indexOf(id), 1);
+                    delete prompts[id];
+                    
+                    me.event.emit('answer', id, value);
+                    
+                }
+            }
         }
-        
-        if (!mgr.is(activity)) {
-            throw new Error('Invalid [activity] parameter');
-        }
-        
-        if (activity.type !== 'input') {
-            throw new Error(
-                    '[' + activity.name + '] is not an input activity');
-        }
-        
-        id = activity.id;
-        
-        if (Object.prototype.hasOwnProperty.call(prompts, id)) {
-            throw new Error(
-                    '[' + activity.name + '] is already registered prompt');
-        }
-        
-        fields[fields.length] = id;
-        prompts[id] = activity;
-        return this;
+        return me;
     }
     
 };

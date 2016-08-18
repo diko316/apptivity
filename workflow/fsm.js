@@ -32,6 +32,7 @@ function Fsm(definition) {
     this.actions = {};
     this.merges = {};
     this.directions = {};
+    this.prompts = {};
     
     this.populateStates(definition);
 }
@@ -43,6 +44,7 @@ Fsm.prototype = {
     ends: void(0),
     actions: void(0),
     merges: void(0),
+    prompts: void(0),
     
     generateState: function (before, pointer) {
         var id = 'state' + (++STATE_GEN_ID);
@@ -60,6 +62,7 @@ Fsm.prototype = {
             actions = this.actions,
             merges = this.merges,
             directions = this.directions,
+            prompts = this.prompts,
             mgr = ACTIVITY,
             endId = mgr.end.id,
             stopId = mgr.stop.id,
@@ -253,6 +256,17 @@ Fsm.prototype = {
             //  activities
             default:
                 activity = mgr(item);
+                
+                // save prompts
+                if (activity.type === 'input') {
+                    id = activity.desc;
+                    if (id in prompts) {
+                        throw new Error(
+                            'Input field [' +
+                            activity.name + '] must be unique');
+                    }
+                    prompts[id] = activity.id;
+                }
                 
                 fragment = {
                     active: activity,

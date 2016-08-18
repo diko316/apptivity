@@ -112,6 +112,15 @@ console.log('workflow ',
     require('util').inspect(fsm, { depth: 10, showHidden: true })
 );
 
+
+
+session.event.on('process',
+    function (session, name, input, output) {
+        console.log('!!!! processed', name, ' < ', input);
+        console.log('!!!!      output', output);
+    });
+
+
 //console.log('lookup: ', fsm.lookup(fsm.start));
 //console.log('lookup: ', fsm.lookup('state2'));
 //console.log('lookup: ', fsm.lookup('state4'));
@@ -126,40 +135,53 @@ session.next({
         value: 'test'
     }
 }).then(function (data) {
-    console.log(' *', data);
+    //console.log(' *', data);
     //console.log('   response: ', session.frame.response);
     return session.next();
 }).then(function (data) {
-    console.log(' *', data);
+    //console.log(' *', data);
     //console.log('forked   response: ', session.frame.response);
     PROMPTING = true;
     return session.next();
 
 }).then(function (data) {
-    console.log('ended? ', session.frame.end);
+    //console.log('ended? ', session.frame.end);
     PROMPTING = false;
     SHOULD_EXIT = true;
-    console.log(' *', data);
+    //console.log(' *', data);
     
     //console.log('after  response: ', session.frame.response);
     return session.next();
 }).then(function (data) {
-    console.log('ended? ', session.frame.end);
-    console.log(' *', data);
     
     //console.log('after  response: ', session.frame.response);
+    return session.next();
+
+}).then(function (data) {
+    console.log('ended! ', session.frame.end, data);
+    //console.log(' *', data);
+    
+    //console.log('after  response: ', session.frame.response);
+}).
+catch(function (e) {
+    console.log('error ', e);
+    console.log(session);
 });
 
 var SHOULD_EXIT = false,
     PROMPTING = false,
     INTERVAL = setInterval(function () {
-        console.log('prompting? ', PROMPTING);
+        
+        session.stop();
+        SHOULD_EXIT = true;
+        
+        //console.log('prompting? ', PROMPTING);
         if (PROMPTING) {
-            session.answer('input7', { name:'answered' });
+            session.answer('test-input', { name:'answered' });
         }
         if (SHOULD_EXIT) {
             clearInterval(INTERVAL);
-            console.log('exiting!');
+            //console.log('exiting!');
         }
     }, 1000);
 

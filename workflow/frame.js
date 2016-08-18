@@ -3,11 +3,32 @@
 var STATUS_UNINITIALIZED = 0,
     PROCESS = require('./process.js'),
     PROMISE = require('bluebird');
+    
+    
+function convertOutput(data) {
+    var options = data.options;
+    var c, l, name, newData, hasOwn;
+    
+    if (options) {
+        hasOwn = Object.prototype.hasOwnProperty;
+        newData = {};
+        data = data.response;
+        for (c = -1, l = options.length; l--;) {
+            name = options[++c];
+            name = name.substring(1, name.length);
+            newData[name] = hasOwn.call(data, name) ?
+                                    data[name].response : void(0);
+        }
+        return newData;
+    }
+    return data.response;
+}
 
 function Frame(session) {
     this.session = session;
     this.processes = {};
     this.request = {};
+    this.destroyed = false;
 }
 
 Frame.prototype = {
@@ -20,8 +41,10 @@ Frame.prototype = {
     
     status: STATUS_UNINITIALIZED,
     error: false,
+    lastError: void(0),
     start: false,
     end: false,
+    destroyed: true,
     
     session: void(0),
     processes: void(0),
@@ -40,17 +63,25 @@ Frame.prototype = {
     allowRun: function () {
         var me = this,
             status = me.status;
-        return status === me.STATUS_READY || status === me.STATUS_COMPLETE;
+        return !me.destoyed &&
+                (status === me.STATUS_READY || status === me.STATUS_COMPLETE);
     },
     
     allowNext: function () {
-        return this.status === this.STATUS_COMPLETE && !this.error;
+        var me = this;
+        return !me.destroyed &&
+                    (me.status === me.STATUS_COMPLETE && !me.error);
     },
     
     load: function (data, rerun) {
-        var hasOwn = Object.prototype.hasOwnProperty,
-            processes = this.processes;
+        var me = this,
+            hasOwn = Object.prototype.hasOwnProperty,
+            processes = me.processes;
         var name;
+        
+        if (me.destroyed) {
+            return me;
+        }
         
         for (name in data) {
             if (hasOwn.call(data, name) &&
@@ -59,51 +90,103 @@ Frame.prototype = {
             }
         }
         
-        if (rerun === true && this.status === this.STATUS_COMPLETE) {
-            this.state = this.STATUS_READY;
+        if (rerun === true && me.status === me.STATUS_COMPLETE) {
+            me.state = me.STATUS_READY;
         }
-        return this;
+        return me;
     },
     
     set: function (state, data) {
         
-        var fsm = this.session.fsm,
-            processes = this.processes,
-            request = this.request,
-            direction = fsm.lookup(state);
+        var me = this,
+            fsm = !me.destroyed && me.session.fsm,
+            processes = me.processes,
+            request = me.request,
+            direction = fsm && fsm.lookup(state);
         
         if (direction) {
             // create process
             if (!Object.prototype.hasOwnProperty.call(processes, state)) {
-                processes[state] = new PROCESS(this, state);
+                processes[state] = new PROCESS(me, state);
             }
             
             processes[state].request = request[state] = data;
             
             
-            if (this.status === this.STATUS_UNINITIALIZED) {
-                this.status = this.STATUS_READY;
+            if (me.status === me.STATUS_UNINITIALIZED) {
+                me.status = me.STATUS_READY;
             }
             
         }
-        return this;
+        return me;
     },
     
+    destroy: function () {
+        var me = this,
+            session = me.session,
+            previous = me.previous,
+            next = me.next;
+        var hasOwn, name;
+        
+        if (!me.destroyed) {
+            delete me.destroyed;
+            hasOwn = Object.prototype.hasOwnProperty;
+            
+            if (session.frame === me) {
+                session.frame = previous || next;
+            }
+            
+            if (previous) {
+                previous.next = next;
+            }
+            
+            if (next) {
+                next.previous = previous;
+            }
+            
+            for (name in me) {
+                if (hasOwn.call(me, name)) {
+                    me[name] = null;
+                    delete me[name];
+                }
+            }
+            
+            session.event.emit('frame-destroyed', session, me);
+        }
+        session = null;
+        me = null;
+        return me;
+    },
     
     run: function () {
         var Promise = PROMISE,
             me = this,
             processes = me.processes,
             session = me.session,
-            fsm = session.fsm;
+            fsm = session && session.fsm;
             
         var state, process, hasOwn, direction, promises, pl, callback, error;
+        
+        if (me.destroyed) {
+            return Promise.reject('Cannot Run Dead frame');
+        }
+        
+        if (me.start) {
+            session.event.emit('start', session);
+        }
+        
+        session.event.emit('before-run', session, me.data);
         
         // rerun data and error if complete
         if (me.status === me.STATUS_COMPLETE) {
             error = me.error;
+            session.event.emit('run', session, me.data, !error);
+            
+            if (me.end) {
+                session.event.emit('end', session);
+            }
             return error ?
-                        Promise.reject(error) : Promise.resolve(me.data);
+                        Promise.reject(me.error) : Promise.resolve(me.data);
         }
         
         if (!me.allowRun()) {
@@ -117,13 +200,32 @@ Frame.prototype = {
         pl = 0;
         
         callback = function (state, target, data) {
-            var process = me.processes[state];
+            var process = me.processes[state],
+                name = target.substring(1, target.length);
+                
+            session.event.emit('before-process', session, name, data);
+            
             return session.exec(state, target, data).
-                        then(function (data) {
+                        then(function (response) {
+                            session.event.emit('process',
+                                                session,
+                                                name,
+                                                data,
+                                                convertOutput(response),
+                                                true);
                             return {
                                 process: process,
-                                response: data
+                                response: response
                             };
+                        }).
+                        catch(function (error) {
+                            session.event.emit('process',
+                                                session,
+                                                name,
+                                                data,
+                                                void(0),
+                                                false);
+                            return Promise.reject(error);
                         });
         };
         
@@ -150,6 +252,11 @@ Frame.prototype = {
                         l = list.length;
                     var item;
                     
+                    if (me.destroyed) {
+                        return Promise.reject(
+                                'Stopped all running process');
+                    }
+                    
                     me.response = {};
                     me.data = {};
                     
@@ -160,23 +267,27 @@ Frame.prototype = {
                     
                     me.status = me.STATUS_COMPLETE;
                     
-                    //console.log('***************');
-                    //console.log('using response ', me.data);
-                    //console.log('***************');
+                    session.event.emit('run', session, me.data, true);
+                    
+                    if (me.end) {
+                        session.event.emit('end', session);
+                    }
+
                     return me.data;
                 
                 }).
                 catch(function (error) {
+                    error = error instanceof Error ?
+                                error : new Error(error);
                     me.status = me.STATUS_COMPLETE;
-                    return Promise.reject(
-                            me.error = error = error instanceof Error ?
-                                                    error : new Error(error));
+                    session.event.emit('run', session, me.data, false);
+                    me.error = true;
+                    me.lastError = error;
+                    if (me.end) {
+                        session.event.emit('end', session);
+                    }
+                    return Promise.reject(error);
                 });
-        
-    },
-    
-    
-    input: function () {
         
     },
     
@@ -244,14 +355,11 @@ Frame.prototype = {
             data = this.data;
         var frame, state, hasOwn;
         
-        if (me.status === me.STATUS_COMPLETE && !me.error) {
+        if (me.allowNext()) {
             
             if (!arguments.length) {
                 override = this.data;
             }
-            
-            //console.log('***next frame data: ', data);
-            
             
             frame = new Frame(me.session);
             this.next = frame;
@@ -269,16 +377,17 @@ Frame.prototype = {
             frame.load(override);
             
             return frame;
-            
-            
+
         }
+        
+        return void(0);
         
     },
     
     saveResponse: function (process, data) {
         var response = this.response,
             myData = this.data,
-            merges = this.session.fsm.merges,
+            merges = !this.destroyed && this.session.fsm.merges,
             activity = data.activity,
             joints = [],
             jl = 0;
@@ -297,29 +406,22 @@ Frame.prototype = {
         /* falls through */
         case 'action':
         case 'input':
-            // create next process
-            //console.log('!!!! action');
             state = data.from;
             process.response = response[state] = data;
             myData[data.to] = data.response;
-            //console.log(' data: ', this.data);
-            //console.log(' response: ', this.response);
-            //console.log('!!!!');
             break;
 
         case 'fork':
 
             state = data.from;
             process.response = response[state] = data;
-            
-            //console.log('!!!! fork and save data');
+
             
             this.addMerger(data.process, data.options, data.processState);
             
             hasOwn = Object.prototype.hasOwnProperty;
             list = data.response;
-            //console.log('list: ', list);
-            //console.log('--------------------------------');
+
             for (name in list) {
                 if (hasOwn.call(list, name)) {
                     item = list[name];
@@ -330,13 +432,6 @@ Frame.prototype = {
                     };
                 }
             }
-            //console.log('joints: ', joints);
-            //console.log('--------------------------------');
-            //console.log(' data: ', this.data);
-            //console.log(' response: ', this.response);
-            //
-            //console.log('!!!!');
-            //
             break;
         }
         
