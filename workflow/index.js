@@ -132,10 +132,13 @@ session.next({
 }).then(function (data) {
     console.log(' *', data);
     //console.log('forked   response: ', session.frame.response);
+    PROMPTING = true;
     return session.next();
 
 }).then(function (data) {
     console.log('ended? ', session.frame.end);
+    PROMPTING = false;
+    SHOULD_EXIT = true;
     console.log(' *', data);
     
     //console.log('after  response: ', session.frame.response);
@@ -146,6 +149,19 @@ session.next({
     
     //console.log('after  response: ', session.frame.response);
 });
+
+var SHOULD_EXIT = false,
+    PROMPTING = false,
+    INTERVAL = setInterval(function () {
+        console.log('prompting? ', PROMPTING);
+        if (PROMPTING) {
+            session.answer('input7', { name:'answered' });
+        }
+        if (SHOULD_EXIT) {
+            clearInterval(INTERVAL);
+            console.log('exiting!');
+        }
+    }, 1000);
 
 
 
@@ -172,4 +188,6 @@ session.next({
 //    function () {
 //        console.log('failed!');
 //    });
+
+
 

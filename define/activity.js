@@ -19,6 +19,10 @@ function create(type, name) {
     return new Activity(type, name);
 }
 
+function is(activity) {
+    return activity instanceof Activity;
+}
+
 function Activity(type, name) {
     var id = type + (++ACTIVITY_GEN_ID);
     ACTIVITIES[id] = this;
@@ -49,3 +53,4 @@ END = create('end', 'final');
 module.exports = get;
 get.create = create;
 get.end = END;
+get.is = is;

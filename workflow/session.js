@@ -3,7 +3,7 @@
 var FSM = require('./fsm.js'),
     FRAME = require('./frame.js'),
     EventEmitter = require('eventemitter3'),
-    //ACTIVITY = require('../define/activity.js'),
+    ACTIVITY = require('../define/activity.js'),
     PROMISE = require('bluebird'),
     SESSION_GEN_ID = 0;
     
@@ -20,6 +20,8 @@ function Session(fsm) {
         throw new Error('invalid [fsm] object parameter');
     }
     this.id = 'sid' + (++SESSION_GEN_ID);
+    this.fields = [];
+    this.prompts = {};
     this.fsm = fsm;
     this.event = new EventEmitter();
 }
@@ -28,6 +30,8 @@ Session.prototype = {
     id: void(0),
     fsm: void(0),
     frame: null,
+    fields: void(0),
+    prompts: void(0),
     event: void(0),
     constructor: Session,
     
@@ -92,9 +96,27 @@ Session.prototype = {
             // for input!
             if (action.type === 'input') {
                 //console.log('listening input!');
-                //promise = promise.then(function () {
-                //    
-                //});
+                promise = promise.then(function () {
+                    
+                    return new Promise(function (resolve) {
+                        var scope = me,
+                            event = scope.event;
+                        
+                        function onAnswer(id, value) {
+                            console.log('on answer? ', id, ' value: ', value);
+                            if (id === action.id) {
+                                event.removeListener('answer', onAnswer);
+                                resolve(value);
+                            }
+                        }
+                        
+                        scope.setPrompt(action);
+                        event.on('answer', onAnswer);
+                        console.log('waiting!');
+                        
+                    });
+                    
+                });
             }
             
             return promise.then(function (response) {
@@ -305,13 +327,57 @@ Session.prototype = {
         
     },
     
-    start: function () {
-        //this.next(data);
+    stop: function () {
         
     },
     
-    stop: function () {
+    answer: function (id, value) {
+        var fields = this.fields,
+            prompts = this.prompts;
+        var activity, index;
         
+        console.log('answering! ', id, ' in ', fields, ' listeners? ', this.event.listeners('answer'));
+        
+        if (Object.prototype.hasOwnProperty.call(prompts, id)) {
+            index = fields.indexOf(id);
+            activity = prompts[id];
+            // remove answered prompts
+            this.event.emit('answer', id, value);
+            
+        }
+        
+        return this;
+    },
+    
+    setPrompt: function (activity) {
+        var mgr = ACTIVITY,
+            fields = this.fields,
+            prompts = this.prompts;
+        var id;
+        
+        if (typeof activity === 'string') {
+            activity = mgr(activity);
+        }
+        
+        if (!mgr.is(activity)) {
+            throw new Error('Invalid [activity] parameter');
+        }
+        
+        if (activity.type !== 'input') {
+            throw new Error(
+                    '[' + activity.name + '] is not an input activity');
+        }
+        
+        id = activity.id;
+        
+        if (Object.prototype.hasOwnProperty.call(prompts, id)) {
+            throw new Error(
+                    '[' + activity.name + '] is already registered prompt');
+        }
+        
+        fields[fields.length] = id;
+        prompts[id] = activity;
+        return this;
     }
     
 };
