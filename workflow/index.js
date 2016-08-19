@@ -119,7 +119,13 @@ session.event.on('process',
         console.log('!!!! processed', name, ' < ', input);
         console.log('!!!!      output', output);
     });
+session.event.on('prompt',
+    function (session) {
+        console.log('emit!');
+        PROMPTING = true;
+    });
 
+session.play({name: 'diko'});
 
 //console.log('lookup: ', fsm.lookup(fsm.start));
 //console.log('lookup: ', fsm.lookup('state2'));
@@ -129,60 +135,54 @@ session.event.on('process',
 //session.guard(session.fsm.start, session.fsm.startAction);
 
 
-session.next({
-    state6: {
-        name: 'diko',
-        value: 'test'
-    }
-}).then(function (data) {
-    //console.log(' *', data);
-    //console.log('   response: ', session.frame.response);
-    return session.next();
-}).then(function (data) {
-    //console.log(' *', data);
-    //console.log('forked   response: ', session.frame.response);
-    PROMPTING = true;
-    return session.next();
+//session.next({
+//    state6: {
+//        name: 'diko',
+//        value: 'test'
+//    }
+//}).then(function (data) {
+//    //console.log(' *', data);
+//    //console.log('   response: ', session.frame.response);
+//    return session.next();
+//}).then(function (data) {
+//    //console.log(' *', data);
+//    //console.log('forked   response: ', session.frame.response);
+//    PROMPTING = true;
+//    return session.next();
+//
+//}).then(function (data) {
+//    //console.log('ended? ', session.frame.end);
+//    PROMPTING = false;
+//    SHOULD_EXIT = true;
+//    //console.log(' *', data);
+//    
+//    //console.log('after  response: ', session.frame.response);
+//    return session.next();
+//}).then(function (data) {
+//    
+//    //console.log('after  response: ', session.frame.response);
+//    return session.next();
+//
+//}).then(function (data) {
+//    console.log('ended! ', session.frame.end, data);
+//    //console.log(' *', data);
+//    
+//    //console.log('after  response: ', session.frame.response);
+//}).
+//catch(function (e) {
+//    console.log('error ', e);
+//    console.log(session);
+//});
 
-}).then(function (data) {
-    //console.log('ended? ', session.frame.end);
-    PROMPTING = false;
-    SHOULD_EXIT = true;
-    //console.log(' *', data);
-    
-    //console.log('after  response: ', session.frame.response);
-    return session.next();
-}).then(function (data) {
-    
-    //console.log('after  response: ', session.frame.response);
-    return session.next();
-
-}).then(function (data) {
-    console.log('ended! ', session.frame.end, data);
-    //console.log(' *', data);
-    
-    //console.log('after  response: ', session.frame.response);
-}).
-catch(function (e) {
-    console.log('error ', e);
-    console.log(session);
-});
-
-var SHOULD_EXIT = false,
-    PROMPTING = false,
+var PROMPTING = false,
     INTERVAL = setInterval(function () {
-        
-        session.stop();
-        SHOULD_EXIT = true;
-        
-        //console.log('prompting? ', PROMPTING);
+
         if (PROMPTING) {
             session.answer('test-input', { name:'answered' });
-        }
-        if (SHOULD_EXIT) {
             clearInterval(INTERVAL);
-            //console.log('exiting!');
+            session.pause();
         }
+        
     }, 1000);
 
 

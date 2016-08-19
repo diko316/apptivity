@@ -62,6 +62,7 @@ Session.prototype = {
     fields: void(0),
     prompts: void(0),
     event: void(0),
+    paused: false,
     constructor: Session,
     
     guard: function (state, action, data) {
@@ -124,7 +125,7 @@ Session.prototype = {
             
             // for input!
             if (action.type === 'input') {
-                //console.log('listening input!');
+                
                 promise = promise.then(function () {
                     
                     return new Promise(function (resolve) {
@@ -140,6 +141,7 @@ Session.prototype = {
                         
                         setPrompt(scope, action);
                         event.on('answer', onAnswer);
+                        console.log('emitting');
                         event.emit('prompt', action.name);
                         
                     });
@@ -352,8 +354,53 @@ Session.prototype = {
     
     },
     
-    play: function () {
+    play: function (data) {
+        var me = this,
+            frame = me.frame,
+            paused = me.paused;
+        var feed, promise;
         
+        function goNext(data) {
+            var frame = me.frame;
+            
+            if (frame && !frame.end) {
+                
+                return me.paused ?
+                            data : me.next().then(goNext, stopError);
+            }
+            
+            me.stop();
+            return data;
+        }
+        
+        function stopError(e) {
+            me.stop();
+            return Promise.reject(e);
+        }
+        
+        me.paused = false;
+        
+        if (!frame && !paused && arguments.length) {
+            
+            feed = {};
+            feed[me.fsm.start] = data;
+            promise = me.next(feed);
+        }
+        else {
+            promise = me.next();
+        }
+        
+        return promise.then(goNext);
+        
+    },
+    
+    pause: function () {
+        var me = this;
+        if (!me.paused && me.frame) {
+            me.paused = true;
+            console.log('paused!');
+        }
+        return this;
     },
     
     stop: function () {
