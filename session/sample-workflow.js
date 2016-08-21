@@ -180,7 +180,7 @@ var PROMPTING = false,
         if (PROMPTING) {
             session.answer('test-input', { name:'answered' });
             clearInterval(INTERVAL);
-            session.pause();
+            session.destroy();
         }
         
     }, 1000);

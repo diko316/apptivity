@@ -207,24 +207,28 @@ Frame.prototype = {
             
             return session.exec(state, target, data).
                         then(function (response) {
-                            session.event.emit('process',
-                                                session,
-                                                name,
-                                                data,
-                                                convertOutput(response),
-                                                true);
+                            if (!session.destroyed) {
+                                session.event.emit('process',
+                                                    session,
+                                                    name,
+                                                    data,
+                                                    convertOutput(response),
+                                                    true);
+                            }
                             return {
                                 process: process,
                                 response: response
                             };
                         }).
                         catch(function (error) {
-                            session.event.emit('process',
-                                                session,
-                                                name,
-                                                data,
-                                                void(0),
-                                                false);
+                            if (!session.destroyed) {
+                                session.event.emit('process',
+                                                    session,
+                                                    name,
+                                                    data,
+                                                    void(0),
+                                                    false);
+                            }
                             return Promise.reject(error);
                         });
         };
@@ -277,13 +281,17 @@ Frame.prototype = {
                 
                 }).
                 catch(function (error) {
+                    var destroyed = session.destroyed;
+                    
                     error = error instanceof Error ?
                                 error : new Error(error);
                     me.status = me.STATUS_COMPLETE;
-                    session.event.emit('run', session, me.data, false);
+                    if (!destroyed) {
+                        session.event.emit('run', session, me.data, false);
+                    }
                     me.error = true;
                     me.lastError = error;
-                    if (me.end) {
+                    if (me.end && !destroyed) {
                         session.event.emit('end', session);
                     }
                     return Promise.reject(error);
@@ -291,6 +299,7 @@ Frame.prototype = {
         
     },
     
+    // TODO: merger must be a stack linked list
     addMerger: function (id, options, state) {
         var list = this.mergers;
         if (!list) {
@@ -307,6 +316,7 @@ Frame.prototype = {
         return this;
     },
     
+    // TODO: merger must be a stack linked list
     removeMerger: function (id, action, data) {
         var list = this.mergers,
             myData = this.data;

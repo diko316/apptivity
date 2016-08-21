@@ -1,88 +1,77 @@
 'use strict';
 
-//global.Promise = require('bluebird');
-//require('./fsm.js');
+var PROMISE = require('bluebird'),
+    SESSION = require('./session/index.js'),
+    FSM = SESSION.fsm,
+    DEFINE = require('./define/index.js'),
+    EXPORTS = instantiate,
+    WORKFLOWS = {},
+    SESSIONS = {};
 
+function instantiate(name) {
+    var workflows = WORKFLOWS,
+        sessions = SESSIONS;
+    var id, workflow, session;
+    
+    if (!name || typeof name !== 'string') {
+        throw new Error('invalid activity [name] parameter');
+    }
+    
+    id = ':' + name;
+    if (id in workflows) {
+        workflow = workflows[id];
+        
+        session = function (data) {
+            
+            if (!session.complete) {
+                
+            }
+            
+        };
+        
+        session.subscribe = function (name, handler) {
+            
+        };
+        
+        //session = new SESSION(fsm);
+        
+        //return session.run(data).
+        
+        
+        
+    }
+    //session = new SESSION(fsm);
+}
 
-var define = require('./workflow/index.js');
-//var processor = require('./workflow/processor.js');
-//var p1, p2;
-//p1 = processor('data',
-//        function (data) {
-//            console.log('processed p1! ', data);
-//            return data;
-//        });
-//p1.name = 'p1';
-//
-//p2 = p1.spawn('data',
-//        function (data) {
-//            console.log('processed p2! ', data);
-//            return data;
-//        });
-//p2.name = 'p2';
-//
-//processor.subscribe('initialize',
-//                    function (process) {
-//                        
-//                        console.log('initialized ', process.name);
-//                        if (process.name === 'p1') {
-//                            process.kill();
-//                            //process.cancel();
-//                        }
-//                        else {
-//                            
-//                        }
-//                    });
-//
-//processor.subscribe('success',
-//                    function (process) {
-//                        console.log('succeeded ', process.name);
-//                    });
-//
-//processor.subscribe('complete',
-//                    function (process) {
-//                        console.log('completed ', process.name);
-//                    });
-//
-//processor.subscribe('cancel',
-//                    function (process) {
-//                        console.log('cancelled ', process.name);
-//                    });
-
-//var workflow = define('createUser').
-//
-//        action('requestForm').
-//            describe('this is a test').
-//            handler(function () {
-//                console.log('handler');
-//            }).
-//            
-//        action('render').
-//            describe('rendering form').
-//            handler(function () {
-//                console.log('rendering!');
-//            }).
-//            
-//        condition(
-//            define('renderedToHTML').
-//                action('renderToHTML'),
-//                
-//            define('failedRender').
-//                action('doNothing')
-//        ).
-//        
-//        finalize();
-//
-//
-//console.log('workflow ', workflow.config);
-//
-//console.log(require('util').inspect(DEFINE.workflow().constructor.prototype, { showHidden: true }));
-//
+function register(activity) {
+    var workflows = WORKFLOWS;
+    var id;
+    
+    if (!DEFINE.is(activity)) {
+        throw new Error('invalid [activity] parameter.');
+    }
+    
+    id = ':' + activity.name;
+    
+    if (id in workflows) {
+        if (workflows[id].activity === activity) {
+            return EXPORTS;
+        }
+        throw new Error(
+                '[activity] name is conflict to already registered activity');
+    }
+    
+    workflows[id] = {
+        activity: activity,
+        fsm: FSM(activity)
+    };
+    
+    return EXPORTS;
+}
 
 
 
-
-
-
-module.exports = {};
+module.exports = EXPORTS['default'] = EXPORTS;
+EXPORTS.activity = DEFINE;
+EXPORTS.register = register;
 

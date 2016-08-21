@@ -6,7 +6,12 @@ var FSM = require('./fsm.js'),
     ACTIVITY = require('../define/activity.js'),
     PROMISE = require('bluebird'),
     SESSION_GEN_ID = 0;
-    
+
+
+function is(session) {
+    return session instanceof Session;
+}
+
 function setPrompt(session, activity) {
     var mgr = ACTIVITY,
         fields = session.fields,
@@ -52,6 +57,7 @@ function Session(fsm) {
     this.fields = [];
     this.prompts = {};
     this.fsm = fsm;
+    this.destroyed = false;
     this.event = new EventEmitter();
 }
 
@@ -63,7 +69,28 @@ Session.prototype = {
     prompts: void(0),
     event: void(0),
     paused: false,
+    destroyed: true,
     constructor: Session,
+    
+    destroy: function () {
+        var me = this;
+        var event, name, hasOwn;
+        
+        if (!me.destroyed) {
+            hasOwn = Object.prototype.hasOwnProperty;
+            me.stop();
+            event = me.event;
+            event.emit('session-destroyed', me);
+            event = null;
+            for (name in me) {
+                if (hasOwn.call(me, name)) {
+                    delete me[name];
+                }
+            }
+        }
+        
+        return me;
+    },
     
     guard: function (state, action, data) {
         var activity = this.fsm.info(state, action),
@@ -273,6 +300,10 @@ Session.prototype = {
             frame = me.frame,
             hasData = !!arguments.length;
             
+        if (this.destroyed) {
+            return Promise.reject('session is already destroyed');
+        }
+            
         var currentFrame;
         
         if (!hasData) {
@@ -328,7 +359,12 @@ Session.prototype = {
     },
     
     previous: function (data) {
-        var frame = this.frame;
+        var frame = this.frame,
+            Promise = PROMISE;
+        
+        if (this.destroyed) {
+            return Promise.reject('session is already destroyed');
+        }
         
         if (!frame) {
             return Promise.reject(
@@ -357,8 +393,13 @@ Session.prototype = {
     play: function (data) {
         var me = this,
             frame = me.frame,
-            paused = me.paused;
+            paused = me.paused,
+            Promise = PROMISE;
         var feed, promise;
+        
+        if (this.destroyed) {
+            return Promise.reject('session is already destroyed');
+        }
         
         function goNext(data) {
             var frame = me.frame;
@@ -396,6 +437,11 @@ Session.prototype = {
     
     pause: function () {
         var me = this;
+        
+        if (me.destroyed) {
+            return PROMISE.reject('session is already destroyed');
+        }
+        
         if (!me.paused && me.frame) {
             me.paused = true;
             console.log('paused!');
@@ -405,6 +451,11 @@ Session.prototype = {
     
     stop: function () {
         var me = this;
+        
+        if (me.destroyed) {
+            return PROMISE.reject('session is already destroyed');
+        }
+        
         for (; me.frame;) {
             me.frame.destroy();
         }
@@ -418,6 +469,10 @@ Session.prototype = {
             prompts = me.prompts,
             hasOwn = Object.prototype.hasOwnProperty;
         var id;
+        
+        if (me.destroyed) {
+            return PROMISE.reject('session is already destroyed');
+        }
         
         if (desc && typeof desc === 'string') {
             desc = ':' + desc;
@@ -442,3 +497,5 @@ Session.prototype = {
 
 
 module.exports = Session;
+Session.fsm = FSM;
+Session.is = is;
