@@ -81,6 +81,7 @@ Session.prototype = {
             me.stop();
             event = me.event;
             event.emit('session-destroyed', me);
+            event.removeAllListeners();
             event = null;
             for (name in me) {
                 if (hasOwn.call(me, name)) {
@@ -462,20 +463,20 @@ Session.prototype = {
         return this;
     },
     
-    answer: function (desc, value) {
+    answer: function (action, value) {
         var me = this,
             fields = me.fields,
             promptIds = me.fsm.prompts,
             prompts = me.prompts,
             hasOwn = Object.prototype.hasOwnProperty;
-        var id;
+        var id, desc;
         
         if (me.destroyed) {
             return PROMISE.reject('session is already destroyed');
         }
         
         if (desc && typeof desc === 'string') {
-            desc = ':' + desc;
+            desc = ':' + action;
             
             if (desc in promptIds) {
                 id = promptIds[desc];

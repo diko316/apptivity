@@ -322,7 +322,7 @@ Frame.prototype = {
             myData = this.data;
         var item, options, index, state;
         
-        if (id in list) {
+        if (list && id in list) {
             item = list[id];
             state = item.state;
             
@@ -397,7 +397,10 @@ Frame.prototype = {
     saveResponse: function (process, data) {
         var response = this.response,
             myData = this.data,
-            merges = !this.destroyed && this.session.fsm.merges,
+            destroyed = this.destroyed,
+            session = !destroyed && this.session,
+            event = session && session.event,
+            merges = session && session.fsm.merges,
             activity = data.activity,
             joints = [],
             jl = 0;
@@ -419,6 +422,14 @@ Frame.prototype = {
             state = data.from;
             process.response = response[state] = data;
             myData[data.to] = data.response;
+            if (event) {
+                event.emit('transition', session, data.activity.name, data);
+                        //data.activity.name,
+                        //data.response,
+                        //data.from,
+                        //data.to,
+                        //data.request);
+            }
             break;
 
         case 'fork':
@@ -436,6 +447,13 @@ Frame.prototype = {
                 if (hasOwn.call(list, name)) {
                     item = list[name];
                     myData[item.to] = item.response;
+                    if (event) {
+                        event.emit('transition', session,
+                                        item.activity.name,
+                                        item.response,
+                                        item.from,
+                                        item.to);
+                    }
                     joints[jl++] = {
                         id: item.from + ' > ' + item.activity.desc,
                         data: item.response
