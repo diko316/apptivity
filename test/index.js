@@ -32,6 +32,6 @@ global.use = function (id) {
 describe('define API',
     function () {
         
-        require('./define/index.js');
+        require('./activity.js');
 
     });

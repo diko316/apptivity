@@ -3,10 +3,36 @@
 var FSM = require('./fsm.js'),
     FRAME = require('./frame.js'),
     EventEmitter = require('eventemitter3'),
+    BUS = require('./pubsub.js'),
     ACTIVITY = require('../define/activity.js'),
     PROMISE = require('bluebird'),
-    SESSION_GEN_ID = 0;
+    SESSION_GEN_ID = 0,
+    SESSIONS = {};
 
+function get(id) {
+    var list = SESSIONS;
+    if (typeof id === 'string' && id in list) {
+        return list[id];
+    }
+    return void(0);
+}
+
+function create(fsm) {
+    var list = SESSIONS;
+    var session, id;
+    
+    if (!FSM.is(fsm)) {
+        throw new Error('invalid [fsm] object parameter');
+    }
+    session = new Session(fsm);
+    id = session.id;
+    list[id] = session;
+    session.event.once('session-destroyed',
+        function () {
+            delete list[id];
+        });
+    return session;
+}
 
 function is(session) {
     return session instanceof Session;
@@ -50,9 +76,6 @@ function EMPTY() {
 
 
 function Session(fsm) {
-    if (!FSM.is(fsm)) {
-        throw new Error('invalid [fsm] object parameter');
-    }
     this.id = 'sid' + (++SESSION_GEN_ID);
     this.fields = [];
     this.prompts = {};
@@ -169,9 +192,9 @@ Session.prototype = {
                         
                         setPrompt(scope, action);
                         event.on('answer', onAnswer);
-                        console.log('emitting');
-                        event.emit('prompt', action.name);
-                        
+                        event.emit('prompt', scope, action.name);
+                        BUS.publish('prompt', scope, action.name);
+
                     });
                     
                 });
@@ -475,7 +498,7 @@ Session.prototype = {
             return PROMISE.reject('session is already destroyed');
         }
         
-        if (desc && typeof desc === 'string') {
+        if (action && typeof action === 'string') {
             desc = ':' + action;
             
             if (desc in promptIds) {
@@ -497,6 +520,7 @@ Session.prototype = {
 };
 
 
-module.exports = Session;
-Session.fsm = FSM;
-Session.is = is;
+module.exports = get;
+get.create = create;
+get.fsm = FSM;
+get.is = is;

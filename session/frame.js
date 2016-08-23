@@ -2,7 +2,9 @@
 
 var STATUS_UNINITIALIZED = 0,
     PROCESS = require('./process.js'),
-    PROMISE = require('bluebird');
+    BUS = require('./pubsub.js'),
+    PROMISE = require('bluebird'),
+    IMMUTABLE = require('immutable');
     
     
 function convertOutput(data) {
@@ -202,7 +204,9 @@ Frame.prototype = {
         callback = function (state, target, data) {
             var process = me.processes[state],
                 name = target.substring(1, target.length);
-                
+            
+            process.action = target;
+            //console.log('action? ', target);
             session.event.emit('before-process', session, name, data);
             
             return session.exec(state, target, data).
@@ -394,6 +398,31 @@ Frame.prototype = {
         
     },
     
+    applyStateData: function (process, data) {
+        var session = this.session;
+        var stateData, action;
+        
+        if (!session.destroyed && !this.destroyed) {
+            action = process.action;
+            stateData = IMMUTABLE.fromJS({
+                            type: data.activity.name,
+                            state: data.to,
+                            from: data.from,
+                            data: data.response,
+                            origin: {
+                                type: action.substring(1, action.length),
+                                state: process.state,
+                                data: process.request
+                            }
+                        });
+            
+            session.state = stateData;
+            session.event.emit('transition', session, stateData.toJS());
+            BUS.publish('state-change', session);
+        }
+        
+    },
+    
     saveResponse: function (process, data) {
         var response = this.response,
             myData = this.data,
@@ -422,13 +451,9 @@ Frame.prototype = {
             state = data.from;
             process.response = response[state] = data;
             myData[data.to] = data.response;
+
             if (event) {
-                event.emit('transition', session, data.activity.name, data);
-                        //data.activity.name,
-                        //data.response,
-                        //data.from,
-                        //data.to,
-                        //data.request);
+                this.applyStateData(process, data);
             }
             break;
 
@@ -448,11 +473,7 @@ Frame.prototype = {
                     item = list[name];
                     myData[item.to] = item.response;
                     if (event) {
-                        event.emit('transition', session,
-                                        item.activity.name,
-                                        item.response,
-                                        item.from,
-                                        item.to);
+                        this.applyStateData(process, item);
                     }
                     joints[jl++] = {
                         id: item.from + ' > ' + item.activity.desc,
