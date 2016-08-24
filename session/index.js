@@ -489,14 +489,15 @@ Session.prototype = {
     answer: function (action, value) {
         var me = this,
             fields = me.fields,
-            promptIds = me.fsm.prompts,
             prompts = me.prompts,
             hasOwn = Object.prototype.hasOwnProperty;
-        var id, desc;
+        var id, desc, promptIds;
         
         if (me.destroyed) {
             return PROMISE.reject('session is already destroyed');
         }
+        
+        promptIds = me.fsm.prompts;
         
         if (action && typeof action === 'string') {
             desc = ':' + action;
