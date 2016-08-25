@@ -104,6 +104,7 @@ Session.prototype = {
             me.stop();
             event = me.event;
             event.emit('session-destroyed', me);
+            BUS.publish('destroy', me);
             event.removeAllListeners();
             event = null;
             for (name in me) {
@@ -324,11 +325,11 @@ Session.prototype = {
             frame = me.frame,
             hasData = !!arguments.length;
             
+        var currentFrame;
+        
         if (this.destroyed) {
             return Promise.reject('session is already destroyed');
         }
-            
-        var currentFrame;
         
         if (!hasData) {
             data = {};
@@ -344,6 +345,7 @@ Session.prototype = {
             frame.start = false;
             frame.set(me.fsm.start, null);
             frame.load(data);
+            BUS.publish('start', me, frame.request);
         }
         else if (!frame.end) {
 

@@ -1,6 +1,6 @@
 {
   "name": "apptivity",
-  "version": "0.0.1",
+  "version": "0.8.1",
   "description": "Multipurpose activity generator",
   "main": "index.js",
   "scripts": {
@@ -30,6 +30,6 @@
     "bluebird": "^3.4.1",
     "eventemitter3": "^1.2.0",
     "immutable": "^3.8.1",
-    "interesting": "^1.0.0"
+    "interesting": "^1.0.1"
   }
 }

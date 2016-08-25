@@ -25,6 +25,7 @@ function instantiate(name) {
         }
         
         session = SESSION.create(workflow.fsm);
+        session.workflowName = name;
         subscriptions = null;
         destroyed = false;
         
@@ -155,10 +156,32 @@ function subscribe(event, handler) {
     return BUS.subscribe(event, handler);
 }
 
+function subscribeBySession(sessionName, event, handler) {
+    
+    if (arguments.length < 3) {
+        return subscribe(sessionName, event);
+    }
+    
+    if (!sessionName || typeof sessionName !== 'string') {
+        throw new Error('Invalid [sessionName] parameter');
+    }
+    
+    if (!(handler instanceof Function)) {
+        throw new Error('Invalid [handler] parameter');
+    }
+    
+    return BUS.subscribe(event,
+                function (session) {
+                    if (sessionName === session.workflowName) {
+                        handler.apply(null, arguments);
+                    }
+                });
+}
+
 module.exports = EXPORTS['default'] = EXPORTS;
 EXPORTS.create = register;
 EXPORTS.activity = DEFINE;
-EXPORTS.subscribe = subscribe;
+EXPORTS.subscribe = subscribeBySession;
 
 
 

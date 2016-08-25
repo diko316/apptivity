@@ -73,14 +73,16 @@ workflow.create('createUser').
 workflow('createUser').
 
     on('state-change',
-        function (session) {
-            console.log('state: ', session.destroyed, session.state.toJS());
+        function (session, data) {
+            console.log('state: ', session.state === data);
+            //console.log('state: ', session.state.toJSON());
+            //console.log('data: ', data.toJSON());
         }).
     
     on('prompt',
         function (session, action) {
             console.log('answering! ', action);
-            session.destroy();
+            //session.destroy();
             session.answer(action, {name: 'yes!'});
             
         }).

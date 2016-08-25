@@ -75,6 +75,12 @@ Frame.prototype = {
                     (me.status === me.STATUS_COMPLETE && !me.error);
     },
     
+    getFirstFrame: function () {
+        var pointer = this;
+        for (; pointer.previous; pointer = pointer.previous) {}
+        return pointer;
+    },
+    
     load: function (data, rerun) {
         var me = this,
             hasOwn = Object.prototype.hasOwnProperty,
@@ -186,6 +192,9 @@ Frame.prototype = {
             
             if (me.end) {
                 session.event.emit('end', session);
+                BUS.publish('end', session,
+                                    me.data,
+                                    me.getFirstFrame().request);
             }
             return error ?
                         Promise.reject(me.error) : Promise.resolve(me.data);
@@ -279,6 +288,9 @@ Frame.prototype = {
                     
                     if (me.end) {
                         session.event.emit('end', session);
+                        BUS.publish('end', session,
+                                            me.data,
+                                            me.getFirstFrame().request);
                     }
 
                     return me.data;
@@ -417,8 +429,12 @@ Frame.prototype = {
                         });
             
             session.state = stateData;
-            session.event.emit('transition', session, stateData.toJS());
-            BUS.publish('state-change', session);
+            //session.event.once('transition',
+            //    function (session, data) {
+            //        console.log('same? ', session.state === data, data.toJSON());
+            //    });
+            session.event.emit('transition', session, stateData);
+            BUS.publish('state-change', session, stateData);
         }
         
     },
