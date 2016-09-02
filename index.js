@@ -64,11 +64,11 @@ function instantiate(name) {
         workflow.fsm = fsm = FSM(workflow.activity);
     }
     
-    return createSession(fsm);
+    return createSession(name, fsm);
 }
 
 
-function createSession(fsm) {
+function createSession(name, fsm) {
     var session = new SESSION(fsm),
         event = session.event,
         id = 'workflow' + (++WORKFLOW_GEN_ID),
@@ -157,6 +157,7 @@ function createSession(fsm) {
     }
     
     api.id = id;
+    api.name = name;
     api.run = run;
     api.answer = answer;
     api.currentPrompt = currentPrompt;
@@ -207,7 +208,16 @@ function onSessionDestroy(session) {
     event.removeListener('end', onSessionEnd);
 }
 
-function subscribe(event, handler) {
+function subscribe(workflowName, event, handler) {
+    
+    if (arguments.length === 2) {
+        handler = event;
+        event = workflowName;
+        workflowName = null;
+    }
+    else if (!workflowName || typeof workflowName !== 'string') {
+        throw new Error('Invalid [workflowName] parameter');
+    }
     
     if (!event || typeof event !== 'string') {
         throw new Error('Invalid [event] parameter');
@@ -217,7 +227,13 @@ function subscribe(event, handler) {
         throw new Error('Invalid [handler] parameter');
     }
     
-    return BUS.subscribe(event, handler);
+    return BUS.subscribe(event,
+                        function (api) {
+                            var name = workflowName;
+                            if (!name || name === api.name) {
+                                handler.apply(null, arguments);
+                            }
+                        });
     
 }
 

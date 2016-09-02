@@ -134,15 +134,26 @@ workflow.create("test-fork").
 	);
 ```
 
-### workflow.subscribe(eventName:*String*, handler:Function):*Function*
+### workflow.subscribe([workflowName:*String*], eventName:*String*, handler:Function):*Function*
 
-Subscribes to all session events and returns a stopper callback. The following are the events the session can broadcast with their callback parameters:
+Subscribes to all session events and returns a stopper callback. `workflowName` parameter is optional and matches all workflow events when omitted.
+
+The following are the events the session can broadcast with their callback parameters:
 
 1. **process-start (session:*sessionAPI*, stateData:*Immutable*)**
+	Event is broadcasted after running the first process for the first time. Usually the first action of the root workflow.
+
 2. **process-end (session:*sessionAPI*, stateData:*Immutable*)**
+	Event is broadcasted after running the last process. Usually the last action of the root workflow or if the workflow encounters an **end** action.
+
 3. **state-change (session:*sessionAPI*, stateData:*Immutable*)**
+	Event is broadcasted after action was completely processed.
+
 4. **prompt (session:*sessionAPI*, actionName:*String*, input:*Mixed*)**
+	Event is broadcasted after workflow encounters an **input** action and waiting for an answer.
+
 5. **destroy (session:*sessionAPI*)**
+	Event is broadcasted after workflow session is destroyed. After this event, other session process will be killed and apply cleanup to the current workflow session.
 
 ## License
 
