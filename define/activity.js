@@ -45,6 +45,7 @@ Activity.prototype = {
     guardName: void(0),
     handler: void(0),
     next: null,
+    label: null,
     constructor: Activity
 };
 

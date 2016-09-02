@@ -80,10 +80,10 @@ workflow('createUser').
         }).
     
     on('prompt',
-        function (session, action) {
-            console.log('answering! ', action);
+        function (session, action, input) {
+            console.log('answering! ', action, '<', input);
             //session.destroy();
-            session.answer(action, {name: 'yes!'});
+            session.answer({name: 'yes!'});
             
         }).
     

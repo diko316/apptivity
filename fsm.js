@@ -3,7 +3,7 @@
 var STATE_GEN_ID = 0,
     FSMS = {},
     EXPORTS = createOrGet,
-    ACTIVITY = require('../define/activity.js');
+    ACTIVITY = require('./define/activity.js');
 
 function createOrGet(definition) {
     var list = FSMS,
@@ -79,7 +79,7 @@ Fsm.prototype = {
             
         var item, left, right, pointer, options, option, ol, actionId, stateId,
             id, state, target, end, fragment, transition,
-            activity, action, pid;
+            activity, action, pid, merger, mergerId;
         
         for (; l--;) {
             item = queue[++c];
@@ -426,13 +426,21 @@ Fsm.prototype = {
                                 pointer = right.pointer;
                                 actionId = pointer.item.desc;
                                 stateId = pointer.from.id;
+                                mergerId = stateId + ' > ' + actionId;
                                 
-                                merges[
-                                    stateId + ' > ' + actionId
-                                ] = {
-                                    target: target,
-                                    pid: pid
-                                };
+                                if (!(mergerId in merges)) {
+                                    merges[mergerId] = {};
+                                }
+                                
+                                merger = merges[mergerId];
+                                merger[pid] = target;
+                                //
+                                //merges[
+                                //    stateId + ' > ' + actionId
+                                //] = {
+                                //    target: target,
+                                //    pid: pid
+                                //};
 
                             }
                             
@@ -465,7 +473,7 @@ Fsm.prototype = {
                 
                 return {
                     state: this.map[state][action],
-                    action: activity,
+                    activity: activity,
                     guard: activity.guard || false,
                     handler: activity.handler || false,
                     process: definition.process || false,

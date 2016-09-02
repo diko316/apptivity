@@ -4,7 +4,7 @@ An activity player that runs actions, conditions, fork, merge and prompt inputs.
 
 ## Installation
 
-This little library is packaged by npm. Source can be found in https://github.com/diko316/apptivity.git
+This little library is packaged by npm. Source can be found in https://github.com/diko316/apptivity
 
 ```sh
 npm install apptivity --save
@@ -76,14 +76,24 @@ Creates session endpoint object from a registered workflow. The session endpoint
 2. **sessionAPI.un(eventName:*String*, handler:*Function*):*sessionAPI***
 	Remove listener to events specific to the current session.
 
-3. **sessionAPI.run(inputData:*Mixed*):*Promise***
+3. **sessionAPI.purge():*sessionAPI***
+	Removes all listeners to the current session.
+
+4. **sessionAPI.run(inputData:*Mixed*):*Promise***
 	Runs the workflow in the current session with the given inputData parameter as request data.
 
-4. **sessionAPI.answer(action:*String*, value:*Mixed*):*sessionAPI***
+5. **sessionAPI.answer(value:*Mixed*):*sessionAPI***
 	Reply to prompts whenever the session encounters input actions.
 
-5. **sessionAPI.get():*Session***
+6. **sessionAPI.get():*Session***
 	Reply to prompts whenever the session encounters input actions.
+
+7. **sessionAPI.currentPrompt():*String***
+	Returns the currently active prompt (action name) that session must answer by calling `sessionAPI.answer(Mixed)`. This will also return `false` if no prompt is on the wait.
+
+8. **sessionAPI.currentState():*Immutable***
+	Returns [Immutable](https://facebook.github.io/immutable-js) or scalar value of the last process output.
+> For more info about Immutable values checkout Immutable js in [https://facebook.github.io/immutable-js](https://facebook.github.io/immutable-js)
 
 ### workflow.create(name:*String*):*Activity*
 
@@ -102,10 +112,37 @@ Creates and registers workflow and returns Activity Object in order chain-define
 	Defines the callback of the action. The returned data or resolved Promise becomes the input of the next action. If action is the last one then it will become the reponse data of the whole activity.
 > must have an action defined first before chain-calling **describe()**, **guard()** and **handler()**.
 
-5. **Activity.condition(activiy:*Activty*, [other:*Activity*]):*Activity***
-	Runs only the first of its activity parameters that satisfies their guard condition. If none of the guarded activity is satisfied, it will run the unguarded activity as a fallback.
-> == more to come, I'm sleepy right now :-( ==
+5. **Activity.input(actionName:*String*):*Activity***
+	Creates an action that prompts and waits for further input by calling `sessionAPI.answer(Mixed)` before passing it as action input for the action handler.
+> Warning: prompt is called after guard callback is executed.
 
+6. **Activity.end():*Activity***
+	Creates an action that abruptly ends the whole workflow. The input for this action becomes the last output and state data of the workflow session.
+
+7. **Activity.condition(activity:*Activity*, [other:*Activity*]):*Activity***
+	Runs only the first of its activity parameters that satisfies their guard condition. If none of the guarded activity is satisfied, it will run the unguarded activity as a fallback.
+
+8. **Activity.fork(activity:*Activity*, [other:*Activity*]):*Activity***
+	Creates an action that forks and simultaneously run all defined activities and merges all output by using first forked activity action names as property. So, next action's input should be `{ activity1: output, activity2: output}` if forked activities are written this way:
+```javascript
+workflow.create("test-fork").
+	fork(
+		workflow.activity('a1').
+        	action('activity1'),
+        workflow.activity('a2').
+        	action('activity2')
+	);
+```
+
+### workflow.subscribe(eventName:*String*, handler:Function):*Function*
+
+Subscribes to all session events and returns a stopper callback. The following are the events the session can broadcast with their callback parameters:
+
+1. **process-start (session:*sessionAPI*, stateData:*Immutable*)**
+2. **process-end (session:*sessionAPI*, stateData:*Immutable*)**
+3. **state-change (session:*sessionAPI*, stateData:*Immutable*)**
+4. **prompt (session:*sessionAPI*, actionName:*String*, input:*Mixed*)**
+5. **destroy (session:*sessionAPI*)**
 
 ## License
 

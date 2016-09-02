@@ -59,13 +59,20 @@ function register(name, onInitialize, onConfigure) {
     }
     
     Prototype[name] = function () {
-        var config = this.config;
-        var args;
+        var config = this.config,
+            last = config.last;
+        var args, current;
         
         if (!config.finalized) {
             args = [config];
             args.push.apply(args, arguments);
             onConfigure.apply(this, args);
+            
+            current = config.last;
+            
+            if (!last && current) {
+                current.label = config.name;
+            }
         }
         
         return this;

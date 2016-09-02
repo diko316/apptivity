@@ -1,190 +1,230 @@
 'use strict';
 
-var DEFINE = require('./define/index.js'),
-    SESSION = require('./session/index.js'),
-    BUS = require('./session/pubsub'),
-    FSM = SESSION.fsm,
-    EXPORTS = instantiate,
-    WORKFLOWS = {};
-    
+var INTERESTING = require('interesting'),
+    SESSION = require('./session.js'),
+    FSM = require('./fsm.js'),
+    DEFINE = require('./define'),
+    BUS = INTERESTING(),
+    WORKFLOWS = {},
+    WORKFLOW_GEN_ID = 0,
+    EXPORTS = instantiate;
 
-function instantiate(name) {
-    var workflows = WORKFLOWS;
-    var id, workflow, session, fsm, subscriptions, api, destroyed;
+function defineWorkflow(name) {
+    var list = WORKFLOWS;
+    var activity, id;
     
-    if (!name || typeof name !== 'string') {
-        throw new Error('invalid activity [name] parameter');
+    if (DEFINE.is(name)) {
+        activity = name;
+        name = activity.config.name;
+    }
+    else {
+        activity = defineActivity(name);
     }
     
     id = ':' + name;
-    if (id in workflows) {
-        workflow = workflows[id];
-        fsm = workflow.fsm;
-        if (!fsm) {
-            workflow.fsm = fsm = FSM(workflow.activity);
-        }
-        
-        session = SESSION.create(workflow.fsm);
-        session.workflowName = name;
-        subscriptions = null;
-        destroyed = false;
-        
-        api = {
-            
-            get: function () {
-                return session;
-            },
-            
-            run: function (data) {
-                return session.play(data);
-            },
-            
-            answer: function () {
-                var instance = session;
-                if (!destroyed) {
-                    instance.answer.apply(instance, arguments);
-                }
-                return api;
-            },
-            
-            on: function (event, handler) {
-                var item, next;
-                if (!destroyed && event && typeof event === 'string' &&
-                    handler instanceof Function) {
-                    item = subscriptions;
-                    subscriptions = next = {
-                        event: event,
-                        handler: handler,
-                        stop: subscribe(event,
-                                function (current) {
-                                    if (current === session) {
-                                        handler.apply(this, arguments);
-                                    }
-                                }),
-                        previous: subscriptions,
-                        next: null
-                    };
-                    if (item) {
-                        item.next = next;
-                    }
-                }
-                return api;
-            },
-            
-            un: function (event, handler) {
-                var item = subscriptions,
-                    current = item;
-                var previous, next;
-                for (; item; ) {
-                    // found
-                    if (item.event === event && item.handler === handler) {
-                        item.stop();
-                        
-                        previous = item.previous;
-                        next = item.next;
-                        
-                        if (previous) {
-                            previous.next = next;
-                        }
-                        if (next) {
-                            next.previous = previous;
-                        }
-                        if (item === current) {
-                            subscriptions = current = previous || next;
-                        }
-                        item.handler = item.stop =
-                        item.previous = item.next = null;
-                        item = previous;
-                    }
-                    else {
-                        item = item.previous;
-                    }
-                }
-                return api;
-            }
-        };
-        
-        session.event.once('session-destroyed',
-            function () {
-                var item = subscriptions;
-                var next;
-                destroyed = true;
-                for (; item; ) {
-                    next = item.previous;
-                    item.stop();
-                    item.handler = item.stop = item.previous = item.next = null;
-                    item = next;
-                }
-            });
-        
-        return api;
-        
-    }
-    return void(0);
-}
-
-function register(activityName) {
-    var workflows = WORKFLOWS;
-    var id, activity;
     
-    if (!activityName || typeof activityName !== 'string') {
-        throw new Error('invalid [activityName] parameter.');
+    if (id in list) {
+        throw new Error('Workflow [' + name + '] is already defined');
     }
     
-    id = ':' + activityName;
-    
-    if (id in workflows) {
-        throw new Error('[' + activityName + ']' +
-            ' name is conflict to already registered activity');
-    }
-    
-    workflows[id] = {
-        activity: activity = DEFINE(activityName),
-        fsm: null
+    list[id] = {
+        fsm: null,
+        activity: activity
     };
     
     return activity;
+
+}
+
+function defineActivity(name) {
+    if (!name || typeof name !== 'string') {
+        throw new Error('Invalid activity name');
+    }
+    return DEFINE(name);
+}
+
+function instantiate(name) {
+    var list = WORKFLOWS;
+    var id, workflow, fsm;
+    
+    if (!name || typeof name !== 'string') {
+        throw new Error('Invalid workflow name');
+    }
+    
+    id = ':' + name;
+    if (!(id in list)) {
+        throw new Error('Workflow [' + name + '] is not yet defined');
+    }
+    
+    workflow = list[id];
+    fsm = workflow.fsm;
+    
+    // finalize
+    if (!fsm) {
+        workflow.fsm = fsm = FSM(workflow.activity);
+    }
+    
+    return createSession(fsm);
+}
+
+
+function createSession(fsm) {
+    var session = new SESSION(fsm),
+        event = session.event,
+        id = 'workflow' + (++WORKFLOW_GEN_ID),
+        subscriptions = [],
+        sl = 0,
+        api = {};
+    
+    function run(input) {
+        return arguments.length ?
+                    session.play(input) : session.play();
+    }
+    
+    function subscribe(event, handler) {
+        var callback;
+        
+        if (!event || typeof event !== 'string') {
+            throw new Error('Invalid [event] parameter');
+        }
+        if (!(handler instanceof Function)) {
+            throw new Error('Invalid [handler] parameter');
+        }
+        
+        callback = BUS.subscribe(event,
+                                function (workflow) {
+                                    if (workflow === api) {
+                                        handler.apply(null, arguments);
+                                    }
+                                });
+        callback.handler = handler;
+        callback.event = event;
+        
+        subscriptions[sl++] = callback;
+        
+        return api;
+    }
+    
+    function unsubscribe(event, handler) {
+        var list = subscriptions,
+            l = list.length;
+        var item;
+        
+        for (; l--;) {
+            item = list[l];
+            if (item.event === event && item.handler === handler) {
+                item();
+                delete item.event;
+                delete item.handler;
+                list.splice(l, 1);
+            }
+        }
+        return api;
+    }
+    
+    function purge() {
+        var list = subscriptions,
+            l = list.length;
+        var item;
+        for (; l--;) {
+            item = list[l];
+            item();
+            delete item.event;
+            delete item.handler;
+        }
+        list.length = 0;
+        return api;
+    }
+    
+    function answer(input) {
+        if (!session.destroyed) {
+            session.answer(input);
+        }
+        return api;
+    }
+    
+    function currentPrompt() {
+        var wait = session.info().wait;
+        return wait || null;
+    }
+    
+    function currentState() {
+        return session.stateData;
+    }
+    
+    function get() {
+        return session;
+    }
+    
+    api.id = id;
+    api.run = run;
+    api.answer = answer;
+    api.currentPrompt = currentPrompt;
+    api.currentState = currentState;
+    api.get = get;
+    api.on = subscribe;
+    api.un = unsubscribe;
+    api.purge = purge;
+    session.workflow = api;
+    
+    event.once('destroy', onSessionDestroy);
+    event.on('start', onSessionStart);
+    event.on('change', onSessionStateChange);
+    event.on('end', onSessionEnd);
+    event.on('process-prompt', onSessionPrompt);
+
+    
+    return api;
+}
+
+function onSessionStart(session, data) {
+    BUS.publish('process-start', session.workflow, data);
+}
+
+function onSessionStateChange(session, data) {
+    BUS.publish('state-change', session.workflow, data);
+}
+
+function onSessionEnd(session, data) {
+    BUS.publish('process-end', session.workflow, data);
+}
+
+function onSessionPrompt(session, name, input) {
+    BUS.publish('prompt', session.workflow, name, input);
+}
+
+function onSessionDestroy(session) {
+    var event = session.event;
+    
+    BUS.publish('destroy', session.workflow);
+    
+    // destroy all subscriptions
+    session.workflow.purge();
+    delete session.workflow;
+    
+    event.removeListener('start', onSessionStart);
+    event.removeListener('change', onSessionStateChange);
+    event.removeListener('end', onSessionEnd);
 }
 
 function subscribe(event, handler) {
+    
     if (!event || typeof event !== 'string') {
         throw new Error('Invalid [event] parameter');
     }
+    
     if (!(handler instanceof Function)) {
         throw new Error('Invalid [handler] parameter');
     }
+    
     return BUS.subscribe(event, handler);
+    
 }
 
-function subscribeBySession(sessionName, event, handler) {
-    
-    if (arguments.length < 3) {
-        return subscribe(sessionName, event);
-    }
-    
-    if (!sessionName || typeof sessionName !== 'string') {
-        throw new Error('Invalid [sessionName] parameter');
-    }
-    
-    if (!(handler instanceof Function)) {
-        throw new Error('Invalid [handler] parameter');
-    }
-    
-    return BUS.subscribe(event,
-                function (session) {
-                    if (sessionName === session.workflowName) {
-                        handler.apply(null, arguments);
-                    }
-                });
-}
 
 module.exports = EXPORTS['default'] = EXPORTS;
-EXPORTS.create = register;
-EXPORTS.activity = DEFINE;
-EXPORTS.subscribe = subscribeBySession;
 
-
-
-
-
+EXPORTS.create = defineWorkflow;
+EXPORTS.activity = defineActivity;
+EXPORTS.subscribe = subscribe;
 
