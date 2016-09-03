@@ -86,7 +86,7 @@ Creates session endpoint object from a registered workflow. The session endpoint
 	Reply to prompts whenever the session encounters input actions.
 
 6. **sessionAPI.get():*Session***
-	Reply to prompts whenever the session encounters input actions.
+	Returns the underlying *Session* instance that processes the workflow.
 
 7. **sessionAPI.currentPrompt():*String***
 	Returns the currently active prompt (action name) that session must answer by calling `sessionAPI.answer(Mixed)`. This will also return `false` if no prompt is on the wait.
