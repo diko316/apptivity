@@ -237,10 +237,20 @@ function subscribe(workflowName, event, handler) {
     
 }
 
+function workflowExists(name) {
+    var list = WORKFLOWS;
+    
+    if (!name || typeof name !== 'string') {
+        throw new Error('Invalid [name] parameter');
+    }
+    
+    return ':' + name in list;
+}
+
 
 module.exports = EXPORTS['default'] = EXPORTS;
 
 EXPORTS.create = defineWorkflow;
 EXPORTS.activity = defineActivity;
 EXPORTS.subscribe = subscribe;
-
+EXPORTS.exist = workflowExists;

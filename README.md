@@ -134,6 +134,9 @@ workflow.create("test-fork").
 	);
 ```
 
+### workflow.exist(workflowName:*String*):*Boolean*
+Finds `workflowName` workflow from parameter and returns `true` if workflow exists. Returns `false` otherwise.
+
 ### workflow.subscribe([workflowName:*String*], eventName:*String*, handler:Function):*Function*
 
 Subscribes to all session events and returns a stopper callback. `workflowName` parameter is optional and matches all workflow events when omitted.
