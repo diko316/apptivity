@@ -7,7 +7,7 @@ var STATE_GEN_ID = 0,
 
 function createOrGet(definition) {
     var list = FSMS,
-        id = definition.id;
+        id = definition.config.id;
     var fsm;
     
     if (id in list) {

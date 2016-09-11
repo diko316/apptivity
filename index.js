@@ -51,6 +51,7 @@ function instantiate(name) {
         throw new Error('Invalid workflow name');
     }
     
+    
     id = ':' + name;
     if (!(id in list)) {
         throw new Error('Workflow [' + name + '] is not yet defined');

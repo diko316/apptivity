@@ -5,7 +5,7 @@ var workflow = require('./index.js');
 workflow.create('createUser').
 
         action('requestForm').
-            describe('this is a test').
+            //describe('this is a test').
             guard(function (data) {
                 
                 console.log(' guard! ');//, data);
@@ -88,3 +88,25 @@ workflow('createUser').
         }).
     
     run({ name: 'buang' });
+    
+    
+    
+    
+    
+    
+workflow.create('public/server-authenticate').
+        action('showLoginPage').
+            handler(function (data) {
+                console.log('   !! showing login page ', data);
+                return data;
+            }).
+        action('authInfo').
+            handler(function (data) {
+                console.log('   !! auth to server ', data);
+                return data;
+            });
+            
+//console.log(
+//    workflow('public/server-authenticate')
+//);
+workflow('public/server-authenticate').run({name: 'test'});
