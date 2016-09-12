@@ -68,32 +68,32 @@ workflow.create('createUser').
 
 
 
+function testAnswer(session, action, input) {
+    console.log('----------------- answered! ', action, '<', input);
+}
 
+function testPrompt(session, action, input) {
+        console.log('!!!answering! ', action, '<', input);
+        //session.destroy();
+        session.answer({name: 'yes!'});
+        
+    }
 
-workflow('createUser').
+var testWorkflow = workflow('createUser');
 
-    on('state-change',
+testWorkflow.on('state-change',
         function (session, data) {
             console.log('state: ', session.state === data);
             //console.log('state: ', session.state.toJSON());
             //console.log('data: ', data.toJSON());
         }).
     
-    on('prompt',
-        function (session, action, input) {
-            console.log('answering! ', action, '<', input);
-            //session.destroy();
-            session.answer({name: 'yes!'});
-            
-        }).
-    on('answer',
-        function (session, action, input) {
-            console.log('----------------- answered! ', action, '<', input);
-        }).
+    on(/prompt/, testPrompt).
+    on(/answer/, testAnswer).
     run({ name: 'buang' });
     
     
-    
+testWorkflow.un(/answer/, testAnswer);
     
     
     

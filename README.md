@@ -70,10 +70,10 @@ stopListening();
 
 Creates session endpoint object from a registered workflow. The session endpoint object exposes session the following functionalites:
 
-1. **sessionAPI.on**(**eventName**:*String*, **handler**:*Function*):*sessionAPI*
+1. **sessionAPI.on**(**eventName**:*String|RegExp*, **handler**:*Function*):*sessionAPI*
 	Listens to events specific to the current session.
 
-2. **sessionAPI.un**(**eventName**:*String*, **handler**:*Function*):*sessionAPI*
+2. **sessionAPI.un**(**eventName**:*String|RegExp*, **handler**:*Function*):*sessionAPI*
 	Remove listener to events specific to the current session.
 
 3. **sessionAPI.purge**():*sessionAPI*
@@ -160,7 +160,7 @@ workflow.create("test-fork").
 ### workflow.exist(workflowName:*String*):*Boolean*
 Finds `workflowName` workflow from parameter and returns `true` if workflow exists. Returns `false` otherwise.
 
-### workflow.subscribe([workflowName:*String*], eventName:*String*, handler:Function):*Function*
+### workflow.subscribe([workflowName:*String*], eventName:*String|RegExp*, handler:Function):*Function*
 
 Subscribes to all session events and returns a stopper callback. `workflowName` parameter is optional and matches all workflow events when omitted.
 

@@ -92,9 +92,10 @@ function createSession(name, fsm) {
     }
     
     function subscribe(event, handler) {
+        var isRegExp = event instanceof RegExp;
         var callback;
         
-        if (!event || typeof event !== 'string') {
+        if (!event || (typeof event !== 'string' && !isRegExp)) {
             throw new Error('Invalid [event] parameter');
         }
         if (!(handler instanceof Function)) {
@@ -110,6 +111,7 @@ function createSession(name, fsm) {
                                     });
             callback.handler = handler;
             callback.event = event;
+            callback.isRegExp = isRegExp;
             
             subscriptions[sl++] = callback;
         }
@@ -118,15 +120,26 @@ function createSession(name, fsm) {
     
     function unsubscribe(event, handler) {
         var list = subscriptions,
-            l = list.length;
-        var item;
+            l = list.length,
+            isRegExp = event instanceof RegExp;
+        var item, eventName;
+        
+        if (isRegExp) {
+            event = event.toString();
+        }
         
         for (; l--;) {
             item = list[l];
-            if (item.event === event && item.handler === handler) {
+            eventName = item.event;
+            if (item.isRegExp) {
+                eventName = eventName.toString();
+            }
+
+            if (eventName === event && item.handler === handler) {
                 item();
                 delete item.event;
                 delete item.handler;
+                delete item.isRegExp;
                 list.splice(l, 1);
             }
         }
@@ -246,6 +259,7 @@ function onSessionDestroy(session) {
 }
 
 function subscribe(workflowName, event, handler) {
+    var isRegExp = event instanceof RegExp;
     
     if (arguments.length === 2) {
         handler = event;
@@ -256,7 +270,7 @@ function subscribe(workflowName, event, handler) {
         throw new Error('Invalid [workflowName] parameter');
     }
     
-    if (!event || typeof event !== 'string') {
+    if (!event || (typeof event !== 'string' && !isRegExp)) {
         throw new Error('Invalid [event] parameter');
     }
     
