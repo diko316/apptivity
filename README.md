@@ -178,6 +178,9 @@ The following are the events the session can broadcast with their callback param
 4. **prompt** (**session**:*sessionAPI*, **actionName**:*String*, **input**:*Mixed*)
 	Event is broadcasted after workflow encounters an **input** action and waiting for an answer.
 
+5. **answer** (**session**:*sessionAPI*, **actionName**:*String*, **input**:*Mixed*)
+	Event is broadcasted after workflow has answered a prompt from an **input** action by calling `session.answer(data)` or `sessionAPI.answer(data)`.
+
 5. **destroy** (**session**:*sessionAPI*)
 	Event is broadcasted after workflow session is destroyed. After this event, other session process will be killed and apply cleanup to the current workflow session.
 

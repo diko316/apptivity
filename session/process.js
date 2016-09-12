@@ -333,7 +333,8 @@ Process.prototype = {
             
             if (type === 'input') {
                 promise = new Promise(function (resolve, reject) {
-                            var event = me.event;
+                            var event = me.event,
+                                activity = me.activity.name;
                             
                             function onDestroy() {
                                 clearInterval(me.waiting);
@@ -353,6 +354,11 @@ Process.prototype = {
                                     reject('Process already destroyed');
                                 }
                                 else {
+                                    
+                                    me.notify('process-answered', [
+                                                activity,
+                                                newInput]);
+                                    
                                     resolve(newInput);
                                 }
                             }
@@ -364,7 +370,7 @@ Process.prototype = {
                             me.waiting = setInterval(EMPTY, 10);
                             
                             me.notify('process-prompt', [
-                                            me.activity.name,
+                                            activity,
                                             input]);
                             
                         });

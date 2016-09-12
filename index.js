@@ -204,10 +204,12 @@ function createSession(name, fsm) {
     event.on('change', onSessionStateChange);
     event.on('play-end', onSessionEnd);
     event.on('process-prompt', onSessionPrompt);
+    event.on('process-answered', onSessionAnswered);
 
     
     return api;
 }
+
 
 function onSessionStart(session, data) {
     BUS.publish('process-start', session.workflow, data);
@@ -223,6 +225,10 @@ function onSessionEnd(session, data) {
 
 function onSessionPrompt(session, name, input) {
     BUS.publish('prompt', session.workflow, name, input);
+}
+
+function onSessionAnswered(session, name, input) {
+    BUS.publish('answer', session.workflow, name, input);
 }
 
 function onSessionDestroy(session) {

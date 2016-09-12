@@ -85,8 +85,12 @@ workflow('createUser').
             //session.destroy();
             session.answer({name: 'yes!'});
             
-        });
-    //.run({ name: 'buang' });
+        }).
+    on('answer',
+        function (session, action, input) {
+            console.log('----------------- answered! ', action, '<', input);
+        }).
+    run({ name: 'buang' });
     
     
     
