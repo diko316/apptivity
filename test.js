@@ -85,9 +85,8 @@ workflow('createUser').
             //session.destroy();
             session.answer({name: 'yes!'});
             
-        }).
-    
-    run({ name: 'buang' });
+        });
+    //.run({ name: 'buang' });
     
     
     
@@ -97,16 +96,21 @@ workflow('createUser').
 workflow.create('public/server-authenticate').
         action('showLoginPage').
             handler(function (data) {
-                console.log('   !! showing login page ', data);
+                console.log('   !! showing login page ', data,' scope: ', this);
                 return data;
             }).
         action('authInfo').
             handler(function (data) {
-                console.log('   !! auth to server ', data);
+                console.log('   !! auth to server ', data, ' scope: ', this);
                 return data;
             });
             
 //console.log(
 //    workflow('public/server-authenticate')
 //);
-workflow('public/server-authenticate').run({name: 'test'});
+
+var api = workflow('public/server-authenticate');
+api.run({name: 'test'}, { name: 'my context'});
+api.destroy();
+api.destroy();
+//api.runOnce({name: 'another'});

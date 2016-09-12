@@ -7,13 +7,15 @@ function EMPTY() {
     
 }
 
-function runGuard(activity, input) {
+function runGuard(activity, session, context, input) {
     var guard = activity.guard,
         Promise = PROMISE;
     
     if (guard) {
         return Promise.resolve(input).
-                then(guard).
+                then(function (data) {
+                    return guard.call(context, data, session);
+                }).
                 then(function () {
                     return activity;
                 });
@@ -58,6 +60,7 @@ Process.prototype = {
     input: void(0),
     output: void(0),
     immutableOutput: void(0),
+    context: null,
     
     origin: null,
     previous: null,
@@ -121,6 +124,7 @@ Process.prototype = {
                 session.process = next || previous;
             }
             
+            delete me.context;
             delete me.next;
             delete me.previous;
             delete me.origin;
@@ -198,7 +202,11 @@ Process.prototype = {
             
             // guard the link
             return (me.session.fsm.lookup(me.from).type === 'condition' ?
-                Promise.resolve(activity) : runGuard(activity, input)).
+                        Promise.resolve(activity) :
+                        runGuard(activity,
+                            me.session,
+                            me.context,
+                            input)).
             
                 then(function (activity) {
                     if (me.destroyed) {
@@ -310,7 +318,8 @@ Process.prototype = {
         var me = this,
             Promise = PROMISE,
             handler = activity.handler,
-            fsm = me.session.fsm,
+            session = me.session,
+            fsm = session.fsm,
             info = me.info,
             target = info.state,
             type = activity.type;
@@ -365,7 +374,12 @@ Process.prototype = {
             }
             
             if (handler) {
-                promise = promise.then(handler);
+                promise = promise.
+                            then(function (data) {
+                                return handler.call(me.context,
+                                                    data,
+                                                    session);
+                            });
             }
             
             return promise.
@@ -390,6 +404,7 @@ Process.prototype = {
                     total = l,
                     FSM = fsm,
                     run = runGuard,
+                    context = me.context,
                     subinput = input,
                     fallback = null,
                     activity = null;
@@ -418,7 +433,7 @@ Process.prototype = {
                         total--;
                         continue;
                     }
-                    run(activity, subinput).
+                    run(activity, session, context, subinput).
                         then(callback).
                         catch(catcher);
                 }
@@ -501,7 +516,7 @@ Process.prototype = {
             process = new Process(me.session,
                             found.state,
                             found.activity);
-            
+            process.context = me.context;
             process.merger = completedMerger.before;
             process.input = output;
             process.origin = me;
@@ -525,6 +540,7 @@ Process.prototype = {
                             found.activity);
         var pid, pending, stopAndMerge, action;
         
+        process.context = me.context;
         process.merger = merger;
         process.input = found.output;
         process.origin = me;

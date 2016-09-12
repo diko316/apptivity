@@ -56,6 +56,7 @@ function Session(fsm) {
 
 Session.prototype = {
     
+    context: null,
     event: void(0),
     fsm: void(0),
     process: null,
@@ -214,7 +215,7 @@ Session.prototype = {
         
     },
     
-    play: function (input) {
+    play: function (context, input) {
         var me = this,
             Promise = PROMISE,
             info = me.info(),
@@ -230,7 +231,7 @@ Session.prototype = {
                 return Promise.reject(new Error("Session is still ongoing"));
             }
             else if (!process) {
-                if (arguments.length) {
+                if (arguments.length > 1) {
                     me.input(input);
                 }
                 else {
@@ -241,6 +242,9 @@ Session.prototype = {
             process = me.process;
             
             if (process) {
+                
+                process.context = typeof context === 'undefined' ?
+                                            null : context;
                 
                 me.event.emit('play-start', me);
                 me.playing = true;
@@ -257,8 +261,13 @@ Session.prototype = {
                     }
                 };
                 
-                
                 return process.run().
+                            then(function (data) {
+                                emitStartOrEnd(me,
+                                    process,
+                                    createStateData(process));
+                                return data;
+                            }).
                             then(runner).
                             then(function (data) {
                                 delete me.playing;
@@ -336,141 +345,4 @@ Session.prototype = {
 
 
 module.exports = Session;
-
-//var session;
-
-//session = create(
-//            FSM(
-//                DEFINE('createUser').
-//                    action('before').
-//                    
-//                    input('getSettings').
-//            
-//                    action('requestForm').
-//                        describe('this is a test').
-//                        guard(function (data) {
-//                            
-//                            console.log(' guard! ');//, data);
-//                            
-//                            return data;//require('bluebird').reject('buang!');
-//                            
-//                        }).
-//                        handler(function (data) {
-//                            console.log('handler requestForm', data);
-//                            return { 'last': true, response: data };
-//                        })
-//            )
-//        );
-
-//session = create(
-//            FSM(
-//                DEFINE('createUser').
-//            
-//                    condition(
-//                        DEFINE('guarded').
-//                            action('guarded').
-//                            guard(function () {
-//                                return Promise.reject('shit!');
-//                                //return data;//require('bluebird').reject('buang!');
-//                            }),
-//                        DEFINE('unguarded').
-//                            action('unguarded')
-//                    )
-//                        
-//            )
-//        );
-
-
-//session = create(
-//            FSM(
-//                DEFINE('createUser').
-//                    fork(
-//                        DEFINE('forker').
-//                            fork(
-//                                DEFINE('guarded2').
-//                                    action('guarded2').
-//                                    guard(function (data) {
-//                                        //return Promise.reject('shit!');
-//                                        return data;//require('bluebird').reject('buang!');
-//                                    }).
-//                                    handler(function () {
-//                                        return { name: 'guarded2' };
-//                                    }),
-//                                DEFINE('unguarded2').
-//                                    action('unguarded2').
-//                                    handler(function () {
-//                                        return { name: 'unguarded2' };
-//                                    })
-//                            ),
-//                            
-//                            
-//                        DEFINE('guarded').
-//                            action('guarded').
-//                            guard(function (data) {
-//                                
-//                                //console.log('rejecting!', data);
-//                                
-//                                //return Promise.reject('shit!');
-//                            
-//                                //return data;//require('bluebird').reject('buang!');
-//                            }).
-//                            handler(function () {
-//                                return { name: 'guarded' };
-//                            }),
-//                            
-//                        DEFINE('unguarded').
-//                            action('unguarded').
-//                            handler(function () {
-//                                return { name: 'unguarded' };
-//                            }).
-//                            input('test-input')
-//                    )
-//                        
-//            )
-//        );
-//
-//
-//
-//console.log(session.fsm);
-//session.play({name: 'test'}).then(function (state) {
-//    console.log('last! ', state);
-//    
-//    session.reset();
-//    console.log('reset!');
-//    
-//    return session.play();
-//}).then(function (state) {
-//    console.log('another last! ', state);
-//});
-//
-////session.play();
-//
-//var until = 3;
-//
-//var interval = setInterval(function () {
-//    var info = session.info();
-//    
-//    console.log('iswaiting!... ', info.wait);//, info.current);
-//    
-//    if (info.wait && !--until) {
-//        session.process.destroy();
-//        session.answer({ name: 'my answer!' });
-//        clearInterval(interval);
-//        
-//        //console.log('info: ', session.info());
-//    }
-//    else if (!info.current) {
-//        clearInterval(interval);
-//    }
-//    
-//    
-//    
-//}, 1000);
-
-
-
-
-
-
-
 

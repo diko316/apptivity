@@ -77,9 +77,18 @@ function createSession(name, fsm) {
         sl = 0,
         api = {};
     
-    function run(input) {
+    function run(input, context) {
+        var current = session;
         return arguments.length ?
-                    session.play(input) : session.play();
+                        current.play(context, input) : current.play(context);
+    }
+    
+    function runOnce() {
+        return run.apply(null, arguments).
+                    then(function (data) {
+                        destroy();
+                        return data;
+                    });
     }
     
     function subscribe(event, handler) {
@@ -92,17 +101,18 @@ function createSession(name, fsm) {
             throw new Error('Invalid [handler] parameter');
         }
         
-        callback = BUS.subscribe(event,
-                                function (workflow) {
-                                    if (workflow === api) {
-                                        handler.apply(null, arguments);
-                                    }
-                                });
-        callback.handler = handler;
-        callback.event = event;
-        
-        subscriptions[sl++] = callback;
-        
+        if (!session.destroyed) {
+            callback = BUS.subscribe(event,
+                                    function (workflow) {
+                                        if (workflow === api) {
+                                            handler.apply(null, arguments);
+                                        }
+                                    });
+            callback.handler = handler;
+            callback.event = event;
+            
+            subscriptions[sl++] = callback;
+        }
         return api;
     }
     
@@ -138,8 +148,9 @@ function createSession(name, fsm) {
     }
     
     function answer(input) {
-        if (!session.destroyed) {
-            session.answer(input);
+        var current = session;
+        if (!current.destroyed) {
+            current.answer(input);
         }
         return api;
     }
@@ -157,9 +168,27 @@ function createSession(name, fsm) {
         return session;
     }
     
+    function destroy() {
+        var current = session;
+        if (!current.destroyed) {
+            if (current.playing) {
+                event.once('play-end', destroy);
+            }
+            else {
+                setImmediate(function () {
+                    if (!current.destroyed) {
+                        current.destroy();
+                    }
+                });
+            }
+        }
+        return api;
+    }
+    
     api.id = id;
     api.name = name;
     api.run = run;
+    api.runOnce = runOnce;
     api.answer = answer;
     api.currentPrompt = currentPrompt;
     api.currentState = currentState;
@@ -167,12 +196,13 @@ function createSession(name, fsm) {
     api.on = subscribe;
     api.un = unsubscribe;
     api.purge = purge;
+    api.destroy = destroy;
     session.workflow = api;
     
     event.once('destroy', onSessionDestroy);
-    event.on('start', onSessionStart);
+    event.on('play-start', onSessionStart);
     event.on('change', onSessionStateChange);
-    event.on('end', onSessionEnd);
+    event.on('play-end', onSessionEnd);
     event.on('process-prompt', onSessionPrompt);
 
     
