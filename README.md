@@ -186,4 +186,5 @@ The following are the events the session can broadcast with their callback param
 
 ## License
 
-[MIT](https://github.com/primus/eventemitter3/blob/master/LICENSE)
+[MIT](https://opensource.org/licenses/MIT)
+
