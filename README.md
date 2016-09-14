@@ -101,7 +101,7 @@ Creates session endpoint object from a registered workflow. The session endpoint
 10. **sessionAPI.destroy**():*Immutable*
 	Destroys the session and applies the necessary cleanup.
 
-### workflow.create(name:*String*):*Activity*
+### <a name="ActivityAPI"></a> workflow.create(name:*String*):*Activity*
 
 Creates and registers workflow and returns Activity Object in order chain-define actions. The following are the actions that Activity can configure:
 
@@ -111,8 +111,10 @@ Creates and registers workflow and returns Activity Object in order chain-define
 2. **Activity.describe**(**description**:*String*, [**nextLine**:*String*]):*Activity*
 	Describes the last defined activity.
 
-3. **Activity.guard**([**name**:*String*], **condition**:*Function*):*Activity*
+3. **Activity.guard**([**name**:*String*], **condition**:*String|Function*):*Activity*
 	Guards the action from calling its handler if condition parameter returns a rejected Promise. This can also be useful if activity is defined as option for **condition** activity.
+>	**Note:** `condition` parameter can also be a named [task](#namedTask) where it can be defined later.
+>
 >	Guard *Condition* parameters will be in this form: **handler**(**input**:*Mixed*, **session**:*Session*)
 >	This will allow you to compose guard condition like the one below:
 ```javascript
@@ -122,8 +124,10 @@ function guard(input, session) {
 }
 ```
 
-4. **Activity.handler**(**handler**:*Function*):*Activity*
+4. **Activity.handler**(**handler**:*String|Function*):*Activity*
 	Defines the callback of the action. The returned data or resolved Promise becomes the input of the next action. If action is the last one then it will become the reponse data of the whole activity.
+>	**Note:** `handler` parameter can also be a named [task](#namedTask) where it can be defined later.
+>
 >	Handler parameters will be in this form: **handler**(**input**:*Mixed*, **session**:*Session*)))
 >	This will allow you to compose handler like the one below:
 >
@@ -133,7 +137,7 @@ function handler(input, session) {
     return processInput(input);
 }
 ```
-> must have an action defined first before chain-calling **describe()**, **guard()** and **handler()**.
+> **Warning**: Action must be defined first before chain-calling **describe()**, **guard()** and **handler()**.
 
 5. **Activity.input**(**actionName**:*String*):*Activity*
 	Creates an action that prompts and waits for further input by calling `sessionAPI.answer(Mixed)` before passing it as action input for the action handler.
@@ -183,6 +187,26 @@ The following are the events the session can broadcast with their callback param
 
 5. **destroy** (**session**:*sessionAPI*)
 	Event is broadcasted after workflow session is destroyed. After this event, other session process will be killed and apply cleanup to the current workflow session.
+
+
+### workflow.activity(activityName:*String*):*Activity*
+Creates a standalone [Activity](#ActivityAPI) which will be further configured by chain-defining its actions and action attributes. This can be useful when defining `condition` options and `fork` actions as their define method parameters. Example below:
+```javascript
+var workflow = require("apptivity");
+
+workflow.create("myActivity").
+	condition(
+    	workflow.activity("removeData").
+        	guard("data/checkpermission").
+            handler("data/doRemove"),
+
+		workflow.activity("showMessage").
+        	handler("data/showPermissionError")
+    );
+```
+
+### <a name="namedTask"></a>workflow.task(name:*String*, handler:*Function*):*workflowAPI*
+Registers named tasks. Useful for assigning named task to action handlers and guards.
 
 ## License
 

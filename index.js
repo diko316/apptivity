@@ -3,6 +3,7 @@
 var INTERESTING = require('interesting'),
     SESSION = require('./session.js'),
     FSM = require('./fsm.js'),
+    TASK = require('./define/task.js'),
     DEFINE = require('./define'),
     BUS = INTERESTING(),
     WORKFLOWS = {},
@@ -298,6 +299,12 @@ function workflowExists(name) {
     return ':' + name in list;
 }
 
+function task() {
+    var libTask = TASK;
+    libTask.define.apply(libTask, arguments);
+    return EXPORTS;
+}
+
 
 module.exports = EXPORTS['default'] = EXPORTS;
 
@@ -305,3 +312,4 @@ EXPORTS.create = defineWorkflow;
 EXPORTS.activity = defineActivity;
 EXPORTS.subscribe = subscribe;
 EXPORTS.exist = workflowExists;
+EXPORTS.task = task;

@@ -1,5 +1,6 @@
 'use strict';
 
+var TASK = require('../task.js');
 
 module.exports = [
     'handler',
@@ -7,7 +8,8 @@ module.exports = [
     null,
     
     function (config, handler) {
-        var current = config.last;
+        var name = handler,
+            current = config.last;
         
         if (!current) {
             throw new Error('no activity to handle');
@@ -18,9 +20,23 @@ module.exports = [
                     'activity [' + current.name + '] already has handler');
         }
         
-        if (!(handler instanceof Function)) {
+        if (handler && typeof handler === 'string') {
+            handler = function (data) {
+                var fn = TASK(name);
+                
+                if (fn) {
+                    return fn.apply(this, arguments);
+                }
+                console.warn("handler for [" + current.name +
+                            "] activity named " + name +
+                            " is not yet implemented.");
+                return data;
+            };
+        }
+        else if (!(handler instanceof Function)) {
             throw new Error('invalid [handler] parameter');
         }
+        
         
         current.handler = handler;
         

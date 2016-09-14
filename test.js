@@ -2,17 +2,26 @@
 
 var workflow = require('./index.js');
 
+workflow.task("createUser/render-form",
+    function (data) {
+        console.log('rendering!');
+        return data;
+    });
+
+//workflow.task("createUser/[requestForm]",
+//    function (data) {
+//                
+//        console.log(' guard! ');//, data);
+//        
+//        return data;//require('bluebird').reject('buang!');
+//        
+//    });
+
 workflow.create('createUser').
 
         action('requestForm').
             //describe('this is a test').
-            guard(function (data) {
-                
-                console.log(' guard! ');//, data);
-                
-                return data;//require('bluebird').reject('buang!');
-                
-            }).
+            guard("createUser/[requestForm]").
             handler(function (data) {
                 console.log('handler requestForm', data);
                 return data;
@@ -20,10 +29,7 @@ workflow.create('createUser').
             
         action('render').
             describe('rendering form').
-            handler(function (data) {
-                console.log('rendering!');
-                return data;
-            }).
+            handler("createUser/render-form").
             
         condition(
             workflow.activity('renderedToHTML').
