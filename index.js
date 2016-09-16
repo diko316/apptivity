@@ -2,33 +2,56 @@
 
 var INTERESTING = require('interesting'),
     SESSION = require('./session.js'),
-    FSM = require('./fsm.js'),
+    FSM = require('./fsm/index.js'),
     TASK = require('./define/task.js'),
     DEFINE = require('./define'),
     BUS = INTERESTING(),
     WORKFLOWS = {},
     WORKFLOW_GEN_ID = 0,
     EXPORTS = instantiate;
+    
+function defineActivity(name) {
+    if (!name || typeof name !== 'string') {
+        throw new Error('Invalid activity name');
+    }
+    return DEFINE(name);
+}
+
+function task() {
+    var libTask = TASK;
+    libTask.define.apply(libTask, arguments);
+    return EXPORTS;
+}
+
+function workflowExists(name) {
+    var list = WORKFLOWS;
+    
+    if (!name || typeof name !== 'string') {
+        throw new Error('Invalid [name] parameter');
+    }
+    
+    return ':' + name in list;
+}
 
 function defineWorkflow(name) {
-    var list = WORKFLOWS;
-    var activity, id;
+    var activity;
     
     if (DEFINE.is(name)) {
+        
+        if (workflowExists(name)) {
+            throw new Error('Workflow [' + name + '] is already defined');
+        }
+        
         activity = name;
         name = activity.config.name;
+        
     }
     else {
         activity = defineActivity(name);
     }
     
-    id = ':' + name;
-    
-    if (id in list) {
-        throw new Error('Workflow [' + name + '] is already defined');
-    }
-    
-    list[id] = {
+    WORKFLOWS[':' + name] = {
+        name: name,
         fsm: null,
         activity: activity
     };
@@ -37,36 +60,44 @@ function defineWorkflow(name) {
 
 }
 
-function defineActivity(name) {
-    if (!name || typeof name !== 'string') {
-        throw new Error('Invalid activity name');
+function finalizeWorkflow(name) {
+    var workflow;
+    
+    if (!workflowExists(name)) {
+        defineWorkflow(name);
     }
-    return DEFINE(name);
+    
+    workflow = WORKFLOWS[':' + name];
+    
+    if (!workflow.fsm) {
+        workflow.fsm = FSM(workflow.activity);
+    }
+    
+    return workflow;
 }
 
+function exportWorkflow(type, name) {
+    var workflow = finalizeWorkflow(name);
+    
+    FSM.exportFSM(type, workflow.fsm);
+    
+    
+}
+
+
+
+
+
 function instantiate(name) {
-    var list = WORKFLOWS;
-    var id, workflow, fsm;
+    var workflow;
     
-    if (!name || typeof name !== 'string') {
-        throw new Error('Invalid workflow name');
-    }
-    
-    
-    id = ':' + name;
-    if (!(id in list)) {
+    if (!workflowExists(name)) {
         throw new Error('Workflow [' + name + '] is not yet defined');
     }
     
-    workflow = list[id];
-    fsm = workflow.fsm;
+    workflow = finalizeWorkflow(name);
     
-    // finalize
-    if (!fsm) {
-        workflow.fsm = fsm = FSM(workflow.activity);
-    }
-    
-    return createSession(name, fsm);
+    return createSession(workflow.name, workflow.fsm);
 }
 
 
@@ -225,6 +256,37 @@ function createSession(name, fsm) {
 }
 
 
+
+function subscribe(workflowName, event, handler) {
+    var isRegExp = event instanceof RegExp;
+    
+    if (arguments.length === 2) {
+        handler = event;
+        event = workflowName;
+        workflowName = null;
+    }
+    else if (!workflowName || typeof workflowName !== 'string') {
+        throw new Error('Invalid [workflowName] parameter');
+    }
+    
+    if (!event || (typeof event !== 'string' && !isRegExp)) {
+        throw new Error('Invalid [event] parameter');
+    }
+    
+    if (!(handler instanceof Function)) {
+        throw new Error('Invalid [handler] parameter');
+    }
+    
+    return BUS.subscribe(event,
+                        function (api) {
+                            var name = workflowName;
+                            if (!name || name === api.name) {
+                                handler.apply(null, arguments);
+                            }
+                        });
+    
+}
+
 function onSessionStart(session, data) {
     BUS.publish('process-start', session.workflow, data);
 }
@@ -259,51 +321,9 @@ function onSessionDestroy(session) {
     event.removeListener('end', onSessionEnd);
 }
 
-function subscribe(workflowName, event, handler) {
-    var isRegExp = event instanceof RegExp;
-    
-    if (arguments.length === 2) {
-        handler = event;
-        event = workflowName;
-        workflowName = null;
-    }
-    else if (!workflowName || typeof workflowName !== 'string') {
-        throw new Error('Invalid [workflowName] parameter');
-    }
-    
-    if (!event || (typeof event !== 'string' && !isRegExp)) {
-        throw new Error('Invalid [event] parameter');
-    }
-    
-    if (!(handler instanceof Function)) {
-        throw new Error('Invalid [handler] parameter');
-    }
-    
-    return BUS.subscribe(event,
-                        function (api) {
-                            var name = workflowName;
-                            if (!name || name === api.name) {
-                                handler.apply(null, arguments);
-                            }
-                        });
-    
-}
 
-function workflowExists(name) {
-    var list = WORKFLOWS;
-    
-    if (!name || typeof name !== 'string') {
-        throw new Error('Invalid [name] parameter');
-    }
-    
-    return ':' + name in list;
-}
 
-function task() {
-    var libTask = TASK;
-    libTask.define.apply(libTask, arguments);
-    return EXPORTS;
-}
+
 
 
 module.exports = EXPORTS['default'] = EXPORTS;
@@ -313,3 +333,8 @@ EXPORTS.activity = defineActivity;
 EXPORTS.subscribe = subscribe;
 EXPORTS.exist = workflowExists;
 EXPORTS.task = task;
+
+
+// TEMPORARY
+EXPORTS.registerTransformer = FSM.registerTransformer;
+EXPORTS.transform = exportWorkflow;

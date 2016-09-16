@@ -3,7 +3,7 @@
 var STATE_GEN_ID = 0,
     FSMS = {},
     EXPORTS = createOrGet,
-    ACTIVITY = require('./define/activity.js');
+    ACTIVITY = require('../define/activity.js');
 
 function createOrGet(definition) {
     var list = FSMS,
@@ -34,11 +34,13 @@ function Fsm(definition) {
     this.directions = {};
     this.prompts = {};
     
+    this.name = definition.config.name;
+    
     this.populateStates(definition);
 }
 
 Fsm.prototype = {
-    
+    name: void(0),
     map: void(0),
     start: void(0),
     ends: void(0),

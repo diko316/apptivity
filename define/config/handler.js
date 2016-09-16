@@ -36,8 +36,13 @@ module.exports = [
         else if (!(handler instanceof Function)) {
             throw new Error('invalid [handler] parameter');
         }
+        else {
+            name = null;
+        }
         
-        
+        if (name) {
+            current.handlerName = name;
+        }
         current.handler = handler;
         
     }];

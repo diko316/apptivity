@@ -95,8 +95,8 @@ testWorkflow.on('state-change',
         }).
     
     on(/prompt/, testPrompt).
-    on(/answer/, testAnswer).
-    run({ name: 'buang' });
+    on(/answer/, testAnswer);
+    //run({ name: 'buang' });
     
     
 testWorkflow.un(/answer/, testAnswer);
@@ -120,7 +120,11 @@ workflow.create('public/server-authenticate').
 //);
 
 var api = workflow('public/server-authenticate');
-api.run({name: 'test'}, { name: 'my context'});
-api.destroy();
-api.destroy();
+//api.run({name: 'test'}, { name: 'my context'});
+//api.destroy();
+//api.destroy();
 //api.runOnce({name: 'another'});
+
+
+
+workflow.transform('default', 'createUser');

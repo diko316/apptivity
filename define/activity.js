@@ -43,6 +43,7 @@ Activity.prototype = {
     options: void(0),
     guard: void(0),
     guardName: void(0),
+    handlerName: "Not Implemented",
     handler: void(0),
     next: null,
     label: null,
