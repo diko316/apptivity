@@ -129,7 +129,8 @@ Fsm.prototype = {
                                     action: stopId
                                 };
                             }
-                            pointer.to = endState.id;
+                            
+                            pointer.to = stopState.id;
                         }
                         else if (!pointer.to) {
                             pointer.to = state.id;

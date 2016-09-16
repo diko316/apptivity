@@ -1,9 +1,13 @@
 'use strict';
 
 var ACTIVITY = require('../define/activity.js'),
-    FSM = require('./parser.js'),
+    //FSM = require('./parser.js'),
     EXPORTS = getTransformer,
-    TRANSFORMERS = {};
+    TRANSFORMERS = {},
+    
+    EXPORT_TYPE_STATE = 1,
+    EXPORT_TYPE_NODE = 2,
+    EXPORT_TYPE_TRANSITION = 3;
 
 function registerTransformer(name, handler) {
     if (!name || typeof name !== 'string') {
@@ -37,185 +41,144 @@ function getTransformer(name) {
     return void(0);
 }
 
+
 function exportFSM(transformer, fsm) {
-    
-    var hasOwn = Object.prototype.hasOwnProperty,
+    var TYPE_STATE = EXPORT_TYPE_STATE,
+        TYPE_NODE = EXPORT_TYPE_NODE,
+        TYPE_TRANSITION = EXPORT_TYPE_TRANSITION,
+        
         translateState = transformStateName,
         translateNode = transformNode,
         translateTransition = transformTransition,
+        translateEnd = transformEnd,
         
-        TYPE_STATE = 1,
-        TYPE_NODE = 2,
-        TYPE_TRANSITION = 3,
+        stateConverts = {},
+        actions = {},
         
-        states = fsm.map,
-        directions = fsm.directions,
-        actions = fsm.actions,
-        merges = fsm.merges,
         input = {
             type: TYPE_STATE,
-            data: fsm.start,
+            state: fsm.start,
             next: null
         },
-        last = input,
-        stack = null,
-        stateNames = {},
-        exportObject = {},
+        
+        lastInput = input,
+        resultObject = {},
+        
         config = {
             name: fsm.name,
             nodeName: 'action',
             transitionName: 'events',
-            startName: 'start',
+            startName: 'initial',
+            endStatesName: 'ends',
             
-            //fsm: fsm,
+            fsm: fsm,
             engine: getTransformer(transformer),
-            states: stateNames,
-            actions: {},
+            states: stateConverts,
+            actions: actions,
             
             transitions: {},
             nodes: {},
-            result: exportObject
+            operation: {
+                output: resultObject
+            },
+            result: resultObject
         };
         
-    var direction, source, target, state, item, action, id, transitions, data,
-        index, desc, lastStack;
-        
-    //console.log('transform! ', fsm);
+    var type, direction, info, source, target, id, temp,
+        items, c, l, item;
     
-    // initialize exportObject
+    // initialize result
     transformInitialize(config, config.name);
     
     for (; input; input = input.next) {
         switch (input.type) {
         case TYPE_STATE:
-            source = input.data;
-            transitions = states[source];
+            source = input.state;
+            direction = fsm.lookup(source);
+            type = direction.type;
             
-            // get all actions and transitions
-            for (action in transitions) {
-                if (hasOwn.call(transitions, action)) {
-                    last = last.next = {
-                        type: TYPE_NODE,
-                        data: [source, action],
-                        next: null
-                    };
-                    
-                    // add state
+            switch (type) {
+            case 'link':
+                info = fsm.info(source, direction.target);
+                id = info.activity.id;
+                target = info.state;
+                
+            /* fall through */
+            case 'condition':
+            case 'fork':
+                items = direction.target;
+                if (type === 'link') {
+                    items = [items];
                 }
+                for (c = -1, l = items.length; l--; ) {
+                    item = items[++c];
+                    info = fsm.info(source, item);
+
+                    id = info.activity.id;
+                    target = info.state;
+                    
+                    // translate state
+                    if (!(source in stateConverts)) {
+                        translateState(config, source, type);
+                    }
+                    
+                    // queue next actions
+                    temp = lastInput;
+                    temp.next = {
+                        type: TYPE_NODE,
+                        state: source,
+                        action: id,
+                        next: {
+                            type: TYPE_STATE,
+                            state: target,
+                            next: lastInput = {
+                                type: TYPE_TRANSITION,
+                                source: source,
+                                action: id,
+                                target: target,
+                                next: null
+                            }
+                        }
+                    };
+                }
+                break;
+            
+            case 'end':
+                translateEnd(config, source);
             }
+            
             break;
         
         case TYPE_NODE:
-            data = input.data;
-            source = data[0];
-            desc = data[1];
-            index = source + ' > ' + desc;
-            target = null;
-            lastStack = stack;
+            id = input.action;
             
-            //console.log('has actions? ', index, ' in ', actions);
-            if (index in actions) {
-                action = actions[index];
-                id = action.actionId;
-                target = states[source][desc];
-                //console.log("target: ", desc, " in ", states[source]);
-                
-                // translate source state
-                if (!(source in stateNames)) {
-                    translateState(config, source, id);
-                }
-                
-                // translate node
-                if (index in actions) {
-                    translateNode(config, source, id);
-                }
-
-                // queue next
-                if (!(target in stateNames)) {
-                    console.log('   queue target state: ', target);
-                    last = last.next = {
-                        type: TYPE_STATE,
-                        data: target,
-                        next: null
-                    };
-                }
-                
-                // queue transition
-                
-                // add to stack
-                stack = {
-                    source: source,
-                    action: id,
-                    target: target,
-                    before: stack
-                };
-                    
-                //last = last.next = {
-                //    type: TYPE_TRANSITION,
-                //    data: [source, id, target],
-                //    next: null
-                //};
-                
-                
-            }
-            // is end action
-            else {
-                
+            if (!(id in actions)) {
+                translateNode(config, input.state, id);
             }
             
-            if (lastStack) {
-                last = last.next = {
-                    type: TYPE_TRANSITION,
-                    data: [lastStack.source,
-                            lastStack.action,
-                            lastStack.target],
-                    next: null
-                };
-                stack = stack.before;
-            }
-            
-            // process stack
-            //if (stack) {
-            //    last = last.next = {
-            //        type: TYPE_TRANSITION,
-            //        data: [stack.source, stack.action, stack.target],
-            //        next: null
-            //    };
-            //    stack = stack.before;
-            //}
-            ////console.log("next ", target);
-            //// create transition stack
-            //if (target) {
-            //    
-            //    // add to stack
-            //    stack = {
-            //        source: source,
-            //        action: id,
-            //        target: target,
-            //        before: stack
-            //    };
-            //    
-            //}
             break;
+        
         case TYPE_TRANSITION:
-            data = input.data;
-            console.log('   * create transition', data);
-            translateTransition(config, data[0], data[1], data[2]);
+            
+            translateTransition(config,
+                                input.source,
+                                input.action,
+                                input.target);
+            break;
+            
         }
     }
-    //console.log("config: ", config.fsm);
-    console.log("config: ", config);
     
-    console.log("config: ", fsm);
-    
+    return config.result;
 }
+
 
 // initialize
 function transformInitialize(config, name) {
     var toString = Object.prototype.toString,
-        exportObject = config.result,
-        result = config.engine('custom-result',
-                                exportObject,
+        resultObject = config.result,
+        result = config.engine('initialize',
+                                config.operation,
                                 name,
                                 config),
         
@@ -236,23 +199,33 @@ function transformInitialize(config, name) {
     
     config.arrayTransitions = isArray;
     
-    exportObject[config.transitionName] = config.transitions = transitions;
+    resultObject[config.startName] = null;
+    
+    resultObject[config.transitionName] = config.transitions = transitions;
         
     // finalize nodes/actions
-    exportObject[config.nodeName] = config.nodes;
+    resultObject[config.nodeName] = config.nodes;
+    
+    if (!isArray) {
+        resultObject[config.endStatesName] = {};
+    }
 }
 
 
 // customize state name
-function transformStateName(config, state) {
-    var result = config.engine('custom-state',
-                                    config.exportObject,
-                                    state);
+function transformStateName(config, state, type) {
+    var result = config.engine('state',
+                                    config.operation,
+                                    state,
+                                    type),
+        newName = result && typeof result === 'string' ? result : state;
     
-    config.states[state] = result && typeof result === 'string' ?
-                                                        result : state;
+    config.states[state] = newName;
     
-    console.log('translated ', state, ' == ', config.states[state]);
+    if (config.fsm.start === state) {
+        config.result[config.startName] = newName;
+    }
+    
 }
 
 // customize node name
@@ -262,12 +235,12 @@ function transformNode(config, state, actionId) {
             id : actionId,
             name: action.name,
             type: action.type,
-            descriptions: action.descriptions,
-            guard: action.guardName,
-            handler: action.handlerName
+            descriptions: action.descriptions || null,
+            guard: action.guardName || null,
+            handler: action.handlerName || null
         },
-        result = config.engine('custom-node',
-                                    config.exportObject,
+        result = config.engine('node',
+                                    config.operation,
                                     config.states[state],
                                     actionObject);
     
@@ -278,29 +251,23 @@ function transformNode(config, state, actionId) {
     
     config.actions[actionId] = result;
     config.nodes[result] = actionObject;
-    
-    
-    //console.log('same? ', actionObject.handler, action.handlerName);
+
 }
 
 // add transition
 function transformTransition(config, source, action, target) {
     
-    var exportObject = config.exportObject,
-        translatedSource = config.states[source],
+    var translatedSource = config.states[source],
         translatedTarget = config.states[target],
-        translatedAction = config.actions[action],
+        translatedAction = config.nodes[config.actions[action]],
         transitions = config.transitions,
         arrayTransitions = config.arrayTransitions,
         
         result = config.engine('transition',
-                                        exportObject,
+                                        config.operation,
                                         translatedSource,
                                         translatedAction,
                                         translatedTarget);
-        
-    //console.log("translated target? ", translatedTarget, " for: ", source, action, target);
-    console.log("   connect ", source, ' > ', action, ' = ', target, '?', translatedTarget);
     
     if (Object.prototype.toString.call(result) !== '[object Object]') {
         result = arrayTransitions ? {
@@ -332,6 +299,26 @@ function transformTransition(config, source, action, target) {
         
         transitions[translatedSource][translatedAction] = result;
     }
+}
+
+function transformEnd(config, state) {
+    var transitions = config.transitions;
+    var source;
+    
+    transformStateName(config, state, 'end');
+    
+    // not applicable for array transitions
+    if (!config.arrayTransitions) {
+        
+        source = config.states[state];
+        
+        if (!(source in transitions)) {
+            transitions[source] = {};
+        }
+        
+        config.result[config.endStatesName][source] = true;
+    }
+    
 }
 
 

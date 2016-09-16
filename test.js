@@ -21,7 +21,7 @@ workflow.create('createUser').
 
         action('requestForm').
             //describe('this is a test').
-            guard("createUser/[requestForm]").
+            guard("createUser/requestForm").
             handler(function (data) {
                 console.log('handler requestForm', data);
                 return data;
@@ -41,7 +41,8 @@ workflow.create('createUser').
                     handler(function (data) {
                         console.log('handler renderedToHTML');//, data);
                         return data;
-                    }),
+                    }).
+                end("test-end"),
                 
             workflow.activity('failedRender').
                 action('renderDom').
@@ -95,8 +96,8 @@ testWorkflow.on('state-change',
         }).
     
     on(/prompt/, testPrompt).
-    on(/answer/, testAnswer);
-    //run({ name: 'buang' });
+    on(/answer/, testAnswer).
+    run({ name: 'buang' });
     
     
 testWorkflow.un(/answer/, testAnswer);
