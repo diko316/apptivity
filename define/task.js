@@ -30,7 +30,7 @@ function register(name, task) {
     
     id = ':' + name;
     if (id in list) {
-        throw new Error("Task [" + name + "] is already registered.");
+        throw new Error("Task [" + name + "] is already implemented.");
     }
     
     list[id] = task;
