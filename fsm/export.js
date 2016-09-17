@@ -25,6 +25,13 @@ function registerTransformer(name, handler) {
 }
 
 function getTransformer(name) {
+    
+    return exist(name) ?
+                    TRANSFORMERS[':' + name] : void(0);
+    
+}
+
+function exist(name) {
     var list = TRANSFORMERS;
     var id;
     
@@ -34,15 +41,11 @@ function getTransformer(name) {
     
     id = ':' + name;
     
-    if (id in list) {
-        return list[id];
-    }
-    
-    return void(0);
+    return id in list;
 }
 
 
-function exportFSM(transformer, fsm) {
+function exportFSM(fsm, transformer) {
     var TYPE_STATE = EXPORT_TYPE_STATE,
         TYPE_NODE = EXPORT_TYPE_NODE,
         TYPE_TRANSITION = EXPORT_TYPE_TRANSITION,
@@ -72,7 +75,8 @@ function exportFSM(transformer, fsm) {
             endStatesName: 'ends',
             
             fsm: fsm,
-            engine: getTransformer(transformer),
+            engine: transformer instanceof Function ?
+                        transformer : getTransformer(transformer),
             states: stateConverts,
             actions: actions,
             
@@ -259,7 +263,7 @@ function transformTransition(config, source, action, target) {
     
     var translatedSource = config.states[source],
         translatedTarget = config.states[target],
-        translatedAction = config.nodes[config.actions[action]],
+        translatedAction = config.nodes[config.actions[action]].id,
         transitions = config.transitions,
         arrayTransitions = config.arrayTransitions,
         
@@ -325,6 +329,7 @@ function transformEnd(config, state) {
 module.exports = EXPORTS;
 EXPORTS.exportFSM = exportFSM;
 EXPORTS.register = registerTransformer;
+EXPORTS.exist = exist;
 
 // register default transformer
 registerTransformer('default', require("./transformer/default.js"));

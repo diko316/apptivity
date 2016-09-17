@@ -16,8 +16,10 @@ function transform(type) {
     //case "node":
     
     // args: type, operation, customSourceState, actionOjbect, customTargetState
-    //                                          (return: transition object
-    //                                              or target string)
+    //                                          (return: transition object if
+    //                                              transition list is Array,
+    //                                              or string if transition
+    //                                              list is object)
     //case "transition":
     }
 }

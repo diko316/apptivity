@@ -76,11 +76,33 @@ function finalizeWorkflow(name) {
     return workflow;
 }
 
-function exportWorkflow(type, name) {
-    var workflow = finalizeWorkflow(name);
+function exportWorkflow(name, type) {
+    var fsmMgr = FSM,
+        isString = typeof type === 'string';
+    var workflow;
+        
+    if (!workflowExists(name)) {
+        throw new Error("Workflow [" + name + "] do not exist.");
+    }
     
-    FSM.exportFSM(type, workflow.fsm);
+    workflow = finalizeWorkflow(name);
     
+    if (arguments.length === 1) {
+        type = 'default';
+        isString = true;
+    }
+    
+    if (isString && !fsmMgr.transformerExist(type)) {
+        throw new Error('transformer type [' + type + '] do not exist');
+    }
+    
+    if (isString || type instanceof Function) {
+
+        return fsmMgr.exportFSM(workflow.fsm, type);
+    
+    }
+    
+    throw new Error("Invalid transformer [type] parameter");
     
 }
 
@@ -336,5 +358,5 @@ EXPORTS.task = task;
 
 
 // TEMPORARY
-EXPORTS.registerTransformer = FSM.registerTransformer;
+EXPORTS.createTransformer = FSM.registerTransformer;
 EXPORTS.transform = exportWorkflow;

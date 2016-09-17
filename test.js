@@ -120,12 +120,13 @@ workflow.create('public/server-authenticate').
 //    workflow('public/server-authenticate')
 //);
 
-var api = workflow('public/server-authenticate');
+//var api = workflow('public/server-authenticate');
 //api.run({name: 'test'}, { name: 'my context'});
 //api.destroy();
 //api.destroy();
 //api.runOnce({name: 'another'});
 
 
-
-workflow.transform('default', 'createUser');
+console.log(
+workflow.transform('createUser')
+);

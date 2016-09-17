@@ -6,4 +6,5 @@ var EXPORTS = require('./parser.js'),
 
 module.exports = EXPORTS;
 EXPORTS.exportFSM = EXPORTER.exportFSM;
+EXPORTS.transformerExist = EXPORTER.exist;
 EXPORTS.registerTransformer = EXPORTS.register;
