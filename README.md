@@ -61,7 +61,18 @@ var stopListening = workflow.subscribe("createUser", "state-change",
 // I change my mind, I don't have to listen to "createUser" workflow's  "state-change" events
 stopListening();
 ```
-> **Note**: You can subscribe anytime even if workflow do not exist.
+> **Note**: You can subscribe to a workflow event anytime even if workflow do not exist.
+
+
+Export the above workflow into a finite state machine definition to create an instance of [javascript-state-machine](https://www.npmjs.com/package/javascript-state-machine).
+
+```javascript
+var StateMachine = require("javascript-state-machine");
+
+var createUserStateMachine = StateMachine.create(
+								workflow.transform('createUser'));
+
+```
 
 
 ## API
@@ -206,7 +217,42 @@ workflow.create("myActivity").
 ```
 
 ### <a name="namedTask"></a>workflow.task(name:*String*, handler:*Function*):*workflowAPI*
-Registers named tasks. Useful for assigning named task to action handlers and guards.
+
+Registers named tasks. Useful for assigning named task to action handlers and guards when splitting definition and implementation into separate files.
+
+
+### <a name="createTransformer"></a>workflow.createTransformer(name:*String*, handler:*Function*):*workflowAPI*
+
+Registers named transformer to custom-transform the exported internal Finite State Machine when calling [workflow.transform(workflowName, tranformerName)](#transform).
+
+`handler` callback is called requesting customization of **state name**, **node name**, **node definition object**, and **resulting FSM definition object**.
+
+`handler` callback contains a base `type` parameter `handler(type:String, [others...])`. Other parameters will vary according to `type` parameter. They are the following:
+
+1. <a name="createTransformer_initialize"></a>**handler**(`"initialize"`, **operation**:*Object*, **fsmName**:*String*, **configSettings**:*Object*):*Object*
+Customizes the resulting FSM definition object by returning customization object. As for now, only `transitions:Object|Array` property in returned customization object is processed.
+
+2. **handler**(`"state"`, **operation**:*Object*, **stateName**:*String*, **stateType**:*String*):*String*
+Customizes state name by returning a new `stateName`. The only nature of the state that determines the available nodes is the `stateType` parameter.
+
+3. **handler**(`"node"`, **operation**:*Object*, **customStateName**:*String*, **proposedNode**:*Object*):*String*
+Customizes node name by returning a new `nodeName`. Existing node name is a unique `Activity.id`. Custom node can be customized by replacing or adding properties in `proposedNode` object.
+
+4. **handler**(`"transition"`, **operation**:*Object*, **sourceCustomStateName**:*String*, **customNodeName**:*Object*, **targetCustomStateName**):*Mixed*
+Customizes transition definition of source state accepting a node input pointing to resulting target state.
+There are 2 possible type of value to return depeding on the `transitions` property customized in ["initialize"](#createTransformer_initialize) phase.
+
+ * **Array transitions** should return `Object` value representing the transition. Default transition value is `{ from: "sourceState", name: "nodeName", to: "targetState" }`. Returning non-object value will use the latter default value as transition object item of transitions.
+ * **Object transitions** can return any value representing the target state. Default target state is the `targetCustomStateName` parameter. Returning `null` or `undefined` will use the default `targetCustomStateName` parameter.
+
+### <a name="trasform"></a>workflow.transform(workflowName:*String*, [transformer:*String|Function*]):*workflowAPI*
+
+Exports internal Finite State Machine of `workflowName` workflow using the optional `transformer` parameter.
+
+ * Providing String `transformer` parameter of `transform()` method will use the registered transformer defined by calling [workflow.createTransformer(name:*String*, handler:*Function*):*workflowAPI*](#createTransformer)
+ * Providing Function `transformer` parameter of `transform()` method will directly use `transformer` as customization callback.
+ * Leaving out `transformer` parameter will use `"default"` transformer which results into an exported Object used to create an instance of [javascript-state-machine](https://www.npmjs.com/package/javascript-state-machine) with `action` property containing node definitions.
+
 
 ## License
 

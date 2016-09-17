@@ -273,14 +273,6 @@ function transformTransition(config, source, action, target) {
                                         translatedAction,
                                         translatedTarget);
     
-    if (Object.prototype.toString.call(result) !== '[object Object]') {
-        result = arrayTransitions ? {
-                            from: translatedSource,
-                            name: translatedAction,
-                            to: translatedTarget
-                        } : translatedTarget;
-    }
-    
     if (arrayTransitions) {
         if (Object.prototype.toString.call(result) !== '[object Object]') {
             result = {
@@ -293,7 +285,7 @@ function transformTransition(config, source, action, target) {
         
     }
     else {
-        if (!result || typeof result !== 'string') {
+        if (result === void(0) || result === null) {
             result = translatedTarget;
         }
         
