@@ -106,7 +106,11 @@ function exportWorkflow(name, type) {
     
 }
 
-
+function createTransformer() {
+    var fsm = FSM;
+    fsm.registerTransformer.apply(fsm, arguments);
+    return EXPORTS;
+}
 
 
 
@@ -358,5 +362,5 @@ EXPORTS.task = task;
 
 
 // TEMPORARY
-EXPORTS.createTransformer = FSM.registerTransformer;
+EXPORTS.createTransformer = createTransformer;
 EXPORTS.transform = exportWorkflow;
