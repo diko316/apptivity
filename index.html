@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>Apptivity by diko316</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">Apptivity</h1>
+      <h2 class="project-tagline"></h2>
+      <a href="https://github.com/diko316/apptivity" class="btn">View on GitHub</a>
+      <a href="https://github.com/diko316/apptivity/zipball/master" class="btn">Download .zip</a>
+      <a href="https://github.com/diko316/apptivity/tarball/master" class="btn">Download .tar.gz</a>
+    </section>
+
+    <section class="main-content">
+      <h1>
+<a id="apptivity" class="anchor" href="#apptivity" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>apptivity</h1>
+
+<p>An activity workflow player that sequentially runs action, condition, fork, merge and prompt input actions.</p>
+
+<p>This library has the following features.</p>
+
+<ol>
+<li><p>Convenient and rich <a href="#usage_definition">definition API</a> to define and configure Workflow activities and actions. It helps developers to focus on overall activity logic before detailing them with their implementations.</p></li>
+<li><p>Flexible definition API allows splitting of Worfklow activity definition with their implementation, keeping files and directories of Workflow modules organized.</p></li>
+<li><p>Workflow activities and actions are more predictable as they each publish an <a href="https://www.npmjs.com/package/immutable">immutable</a> state object containing unique state name, action name, request data, and response data per completed run of Activity action.</p></li>
+<li><p>Activity action supports asynchronous runs by supplying a <code>callback</code> function that returns Promise Object when defining Action implementations using <a href="#ActivityAPI_handler">handler(callback:Function)</a> or <a href="#ActivityAPI_guard">guard(callback:Function)</a> methods.</p></li>
+<li><p>Workflows' internal Finite State Machine can be exported into any custom JSON schema using <a href="#transform">workflow.trasform(workflowName:String)</a>.</p></li>
+</ol>
+
+<h2>
+<a id="installation" class="anchor" href="#installation" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Installation</h2>
+
+<p>This little library is packaged by npm. Source can be found in <a href="https://github.com/diko316/apptivity">github repository</a></p>
+
+<div class="highlight highlight-source-shell"><pre>npm install apptivity --save</pre></div>
+
+<h2>
+<a id="usage" class="anchor" href="#usage" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Usage</h2>
+
+<p><a name="usage_definition"></a>Create a Workflow activity and chain-configure actions with definition API.</p>
+
+<div class="highlight highlight-source-js"><pre><span class="pl-k">var</span> workflow <span class="pl-k">=</span> <span class="pl-c1">require</span>(<span class="pl-s"><span class="pl-pds">'</span>./index.js<span class="pl-pds">'</span></span>);
+
+<span class="pl-smi">workflow</span>.<span class="pl-en">create</span>(<span class="pl-s"><span class="pl-pds">"</span>createUser<span class="pl-pds">"</span></span>).
+            <span class="pl-c">// create action</span>
+            <span class="pl-en">action</span>(<span class="pl-s"><span class="pl-pds">"</span>fetchFromBackend<span class="pl-pds">"</span></span>).
+                <span class="pl-en">describe</span>(<span class="pl-s"><span class="pl-pds">"</span>fetch something from the backend<span class="pl-pds">"</span></span>,
+                        <span class="pl-s"><span class="pl-pds">"</span>or find something to populate the initial input data<span class="pl-pds">"</span></span>,
+                        <span class="pl-s"><span class="pl-pds">"</span>Remember: [describe], [guard] and [handler] is optional<span class="pl-pds">"</span></span>).
+                <span class="pl-en">guard</span>(<span class="pl-k">function</span> (<span class="pl-smi">input</span>) {
+                    <span class="pl-k">return</span> <span class="pl-c1">Promise</span>.<span class="pl-en">resolve</span>(input);
+                }).
+                <span class="pl-en">handler</span>(<span class="pl-k">function</span> (<span class="pl-smi">input</span>) {
+                    <span class="pl-k">return</span> <span class="pl-smi">Ajax</span>.<span class="pl-en">requestAndReturnPromise</span>(input);
+                }).
+            <span class="pl-c">// your last action</span>
+            <span class="pl-en">action</span>(<span class="pl-s"><span class="pl-pds">"</span>renderAndExit<span class="pl-pds">"</span></span>).
+                <span class="pl-en">describe</span>(<span class="pl-s"><span class="pl-pds">"</span>Nothing special if no [handler]<span class="pl-pds">"</span></span>).
+                <span class="pl-en">handler</span>(<span class="pl-k">function</span> (<span class="pl-smi">data</span>) {
+                    <span class="pl-k">return</span> { name<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>whatever! this will be your last data<span class="pl-pds">"</span></span> };
+                });
+</pre></div>
+
+<p>Run the newly created Workflow activity and monitor state changes.</p>
+
+<div class="highlight highlight-source-js"><pre><span class="pl-en">workflow</span>(<span class="pl-s"><span class="pl-pds">"</span>createUser<span class="pl-pds">"</span></span>).
+    <span class="pl-c">// register event listener</span>
+    <span class="pl-en">on</span>(<span class="pl-s"><span class="pl-pds">"</span>state-change<span class="pl-pds">"</span></span>,
+        <span class="pl-k">function</span> (<span class="pl-smi">session</span>, <span class="pl-smi">data</span>) {
+            <span class="pl-en">console</span>.<span class="pl-c1">log</span>(<span class="pl-s"><span class="pl-pds">"</span>state: <span class="pl-pds">"</span></span>, <span class="pl-smi">session</span>.<span class="pl-smi">state</span> <span class="pl-k">===</span> data);
+            <span class="pl-en">console</span>.<span class="pl-c1">log</span>(<span class="pl-s"><span class="pl-pds">"</span>yes! do something about this immutable [data]<span class="pl-pds">"</span></span>);
+        }).
+    <span class="pl-c">// run the workflow</span>
+    <span class="pl-en">run</span>({ name<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>first input<span class="pl-pds">"</span></span> });</pre></div>
+
+<p>Listen to other running Workflow activity sessions' <code>state-change</code> event.</p>
+
+<div class="highlight highlight-source-js"><pre><span class="pl-k">var</span> stopListening <span class="pl-k">=</span> <span class="pl-smi">workflow</span>.<span class="pl-en">subscribe</span>(<span class="pl-s"><span class="pl-pds">"</span>createUser<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>state-change<span class="pl-pds">"</span></span>,
+                                <span class="pl-k">function</span> (<span class="pl-smi">session</span>, <span class="pl-smi">data</span>) {
+                                    <span class="pl-en">console</span>.<span class="pl-c1">log</span>(<span class="pl-s"><span class="pl-pds">"</span>what should I do with this?<span class="pl-pds">"</span></span>);
+                                });
+<span class="pl-c">// I change my mind, I don't have to listen to "createUser" workflow's  "state-change" events</span>
+<span class="pl-en">stopListening</span>();</pre></div>
+
+<blockquote>
+<p><strong>Note</strong>: You can subscribe to a workflow event anytime even if the workflow does not exist.</p>
+</blockquote>
+
+<p>Export the workflow into Finite State Machine configuration to create an instance of <a href="https://www.npmjs.com/package/javascript-state-machine">javascript-state-machine</a>.</p>
+
+<div class="highlight highlight-source-js"><pre><span class="pl-k">var</span> StateMachine <span class="pl-k">=</span> <span class="pl-c1">require</span>(<span class="pl-s"><span class="pl-pds">"</span>javascript-state-machine<span class="pl-pds">"</span></span>);
+
+<span class="pl-k">var</span> createUserStateMachine <span class="pl-k">=</span> <span class="pl-smi">StateMachine</span>.<span class="pl-en">create</span>(
+                                <span class="pl-smi">workflow</span>.<span class="pl-en">transform</span>(<span class="pl-s"><span class="pl-pds">'</span>createUser<span class="pl-pds">'</span></span>));
+</pre></div>
+
+<h2>
+<a id="api" class="anchor" href="#api" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>API</h2>
+
+<h3>
+<a id="workflownamestringsessionapi" class="anchor" href="#workflownamestringsessionapi" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>workflow(name:<em>String</em>):<em>sessionAPI</em>
+</h3>
+
+<p>Creates session endpoint object from a registered workflow. The session object has the following convenience methods to handle most of the use-cases to manage a Workflow session:</p>
+
+<ol>
+<li><p><strong>sessionAPI.on</strong>(<strong>eventName</strong>:<em>String|RegExp</em>, <strong>handler</strong>:<em>Function</em>):<em>sessionAPI</em>
+Listen to events specific to the current session.</p></li>
+<li><p><strong>sessionAPI.un</strong>(<strong>eventName</strong>:<em>String|RegExp</em>, <strong>handler</strong>:<em>Function</em>):<em>sessionAPI</em>
+Removes event listener specific to the current session.</p></li>
+<li><p><strong>sessionAPI.purge</strong>():<em>sessionAPI</em>
+Removes all listeners of the current session.</p></li>
+<li><p><strong>sessionAPI.run</strong>(<strong>inputData</strong>:<em>Mixed</em>, <strong>context</strong>:<em>Mixed</em>):<em>Promise</em>
+Runs the Workflow session with <code>inputData</code> parameter as initial request data. <code>context</code> parameter becomes <code>this</code> for all action guards and handlers. Default <code>context</code> is <code>global</code> for NodeJS or <code>window</code> for browsers.</p></li>
+<li><p><strong>sessionAPI.runOnce</strong>(<strong>inputData</strong>:<em>Mixed</em>, <strong>context</strong>:<em>Mixed</em>):<em>Promise</em>
+Runs the Workflow session then destroys it when done.</p></li>
+<li><p><strong>sessionAPI.answer</strong>(<strong>value</strong>:<em>Mixed</em>):<em>sessionAPI</em>
+Replies to prompts whenever the session runs an input action.</p></li>
+<li><p><strong>sessionAPI.get</strong>():<em>Session</em>
+Returns the underlying <em>Session</em> instance that processes the Workflow.</p></li>
+<li><p><strong>sessionAPI.currentPrompt</strong>():<em>String</em>
+Returns the currently active prompt <em>(input action name)</em> that is waiting for an answer. It can be answered by calling <code>sessionAPI.answer(Mixed) or session.asnwer(Mixed)</code>. Returns <code>false</code> if no prompt is waiting.</p></li>
+<li><p><strong>sessionAPI.currentState</strong>():<em><a href="http://facebook.github.io/immutable-js">Immutable</a></em>
+Returns <a href="https://facebook.github.io/immutable-js">Immutable</a> or scalar value of the last process output.</p></li>
+<li><p><strong>sessionAPI.destroy</strong>():<em><a href="http://facebook.github.io/immutable-js">Immutable</a></em>
+Destroys the session and applies the necessary cleanup.</p></li>
+</ol>
+
+<h3>
+<a id="-workflowcreatenamestringactivity" class="anchor" href="#-workflowcreatenamestringactivity" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><a name="ActivityAPI"></a> workflow.create(name:<em>String</em>):<em>Activity</em>
+</h3>
+
+<p>Creates and registers workflow and returns Activity Definition Object in order to chain-define actions for it. The following are the actions that Activity can configure:</p>
+
+<ol>
+<li><p><strong>Activity.action</strong>(<strong>actionName</strong>:<em>String</em>):<em>Activity</em>
+Creates action activity.</p></li>
+<li><p><strong>Activity.describe</strong>(<strong>description</strong>:<em>String</em>, [<strong>nextLine</strong>:<em>String</em>]):<em>Activity</em>
+Describes the last defined action.</p></li>
+<li>
+<p><strong>Activity.guard</strong>([<strong>name</strong>:<em>String</em>], <strong>condition</strong>:<em>String|Function</em>):<em>Activity</em>
+Guards the action from calling its handler. Defined handler and the rest of the actions will stop running when <code>condition</code> function returns a rejected Promise.</p>
+
+<blockquote>
+<p><strong>Note:</strong> <code>condition</code> parameter can also be a named <a href="#namedTask">task</a> where it can be defined later.</p>
+
+<p>Guard <code>condition</code> runs with <code>input</code> and <code>session</code> arguments like the example below</p>
+
+<p><strong>handler</strong>(<strong>input</strong>:<em>Mixed</em>, <strong>session</strong>:<em>Session</em>)</p>
+</blockquote>
+
+<div class="highlight highlight-source-js"><pre><span class="pl-k">function</span> <span class="pl-en">guard</span>(<span class="pl-smi">input</span>, <span class="pl-smi">session</span>) {
+<span class="pl-k">var</span> context <span class="pl-k">=</span> <span class="pl-v">this</span>;
+<span class="pl-k">return</span> <span class="pl-c1">Promise</span>.<span class="pl-en">reject</span>(<span class="pl-s"><span class="pl-pds">"</span>no entry!<span class="pl-pds">"</span></span>);
+}</pre></div>
+</li>
+<li>
+<p><a name="ActivityAPI_handler"></a> <strong>Activity.handler</strong>(<strong>handler</strong>:<em>String|Function</em>):<em>Activity</em>
+Defines the callback of the action. The returned data or resolved Promise of the <code>handler</code> parameter becomes the response data of the current action and input data of the next action. If it is the last action, then it will become the reponse data of the whole activity.</p>
+
+<blockquote>
+<p><strong>Note:</strong> <code>handler</code> parameter can also be a named <a href="#namedTask">task</a> where it can be defined later.</p>
+
+<p>Handler <code>handler</code> like guard <code>condition</code> runs with <code>input</code> and <code>session</code> arguments like the example below</p>
+
+<p><strong>handler</strong>(<strong>input</strong>:<em>Mixed</em>, <strong>session</strong>:<em>Session</em>)))</p>
+</blockquote>
+
+<div class="highlight highlight-source-js"><pre><span class="pl-k">function</span> <span class="pl-en">handler</span>(<span class="pl-smi">input</span>, <span class="pl-smi">session</span>) {
+<span class="pl-k">var</span> context <span class="pl-k">=</span> <span class="pl-v">this</span>;
+<span class="pl-k">return</span> <span class="pl-en">processInput</span>(input);
+}</pre></div>
+
+<blockquote>
+<p><strong>Warning</strong>: Action must be defined first before chain-calling <strong>describe()</strong>, <strong>guard()</strong> and <strong>handler()</strong>.</p>
+</blockquote>
+</li>
+<li>
+<strong>Activity.input</strong>(<strong>actionName</strong>:<em>String</em>):<em>Activity</em>
+Creates an action that waits for input before running the handler. Input actions are answered by calling <code>sessionAPI.answer(input:Mixed)</code> or <code>sesion.answer(input:Mixed)</code> replacing the action's request data with <code>input</code> argument.
+&gt; <strong>Warning!</strong> Prompt is called after guard callback is executed.</li>
+<li><p><strong>Activity.end</strong>():<em>Activity</em>
+Creates an action that abruptly ends the whole Workflow. The input for this action becomes the last output and state data of the Workflow session.</p></li>
+<li>
+<p><strong>Activity.condition</strong>(<strong>activity</strong>:<em>Activity</em>, [<strong>other</strong>:<em>Activity</em>, ...]):<em>Activity</em>
+Runs the first <code>activity</code> (and <code>other</code> parameters) that satisfies the guard condition of their first action.</p>
+
+<blockquote>
+<p><strong>Warning!</strong> Activities (<code>activity</code> and <code>other</code> parameters) having Guard condition in their first Action are evaluated first before falling back to other Activity without Guard condition in their first Action. Other activities after that will be ignored. So, there is no need to add two or more Activities without Guard condition in their first Action.
+  Treat activity having an unguarded first action as the only <code>else</code> block of the <code>if</code> and <code>else if</code> blocks.</p>
+</blockquote>
+</li>
+<li>
+<p><strong>Activity.fork</strong>(<strong>activity</strong>:<em>Activity</em>, [<strong>other</strong>:<em>Activity</em>, ...]):<em>Activity</em>
+Creates an action that forks multiple process that simultaneously run all Activities (<code>activity</code> and <code>other</code> parameters) then merge all their output when done running.
+Merged output is an object with property names named with first Action of the forked Activities.</p>
+
+<blockquote>
+<p>Example output object is <code>{ activity1: output, activity2: output}</code> when running the Forked Activities defined below:</p>
+</blockquote>
+
+<div class="highlight highlight-source-js"><pre><span class="pl-smi">workflow</span>.<span class="pl-en">create</span>(<span class="pl-s"><span class="pl-pds">"</span>test-fork<span class="pl-pds">"</span></span>).
+<span class="pl-en">fork</span>(
+    <span class="pl-smi">workflow</span>.<span class="pl-en">activity</span>(<span class="pl-s"><span class="pl-pds">'</span>a1<span class="pl-pds">'</span></span>).
+        <span class="pl-en">action</span>(<span class="pl-s"><span class="pl-pds">'</span>activity1<span class="pl-pds">'</span></span>),
+    <span class="pl-smi">workflow</span>.<span class="pl-en">activity</span>(<span class="pl-s"><span class="pl-pds">'</span>a2<span class="pl-pds">'</span></span>).
+        <span class="pl-en">action</span>(<span class="pl-s"><span class="pl-pds">'</span>activity2<span class="pl-pds">'</span></span>)
+);</pre></div>
+</li>
+</ol>
+
+<h3>
+<a id="workflowexistworkflownamestringboolean" class="anchor" href="#workflowexistworkflownamestringboolean" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>workflow.exist(workflowName:<em>String</em>):<em>Boolean</em>
+</h3>
+
+<p>Finds named workflow defined in <code>workflowName</code> parameter. Returns <code>true</code> if workflow exist or <code>false</code> otherwise.</p>
+
+<h3>
+<a id="workflowsubscribeworkflownamestring-eventnamestringregexp-handlerfunctionfunction" class="anchor" href="#workflowsubscribeworkflownamestring-eventnamestringregexp-handlerfunctionfunction" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>workflow.subscribe([workflowName:<em>String</em>], eventName:<em>String|RegExp</em>, handler:Function):<em>Function</em>
+</h3>
+
+<p>Subscribes all session events filtered by <code>workflowName</code> and <code>eventName</code> parameters. Then, returns a Function that can unsubscribe the event when called. <code>workflowName</code> parameter is optional and matches all workflow events when omitted.</p>
+
+<p>The following are the events the session can broadcast with their callback parameters:</p>
+
+<ol>
+<li><p><strong>process-start</strong> (<strong>session</strong>:<em>sessionAPI</em>, <strong>stateData</strong>:<em><a href="http://facebook.github.io/immutable-js">Immutable</a></em>)
+Event is broadcasted after running the first process for the first time. Usually the first action of the root workflow.</p></li>
+<li><p><strong>process-end</strong> (<strong>session</strong>:<em>sessionAPI</em>, <strong>stateData</strong>:<em><a href="http://facebook.github.io/immutable-js">Immutable</a></em>)
+Event is broadcasted after running the last process. Usually the last action of the root workflow or if the workflow encounters an abrupt <strong>end</strong> action.</p></li>
+<li><p><strong>state-change</strong> (<strong>session</strong>:<em>sessionAPI</em>, <strong>stateData</strong>:<em><a href="http://facebook.github.io/immutable-js">Immutable</a></em>)
+Event is broadcasted after action was completely processed.</p></li>
+<li><p><strong>prompt</strong> (<strong>session</strong>:<em>sessionAPI</em>, <strong>actionName</strong>:<em>String</em>, <strong>input</strong>:<em>Mixed</em>)
+Event is broadcasted after workflow encounters an <strong>input</strong> action and waiting for an answer.</p></li>
+<li><p><strong>answer</strong> (<strong>session</strong>:<em>sessionAPI</em>, <strong>actionName</strong>:<em>String</em>, <strong>input</strong>:<em>Mixed</em>)
+Event is broadcasted after workflow has answered a prompt from an <strong>input</strong> action by calling <code>session.answer(data)</code> or <code>sessionAPI.answer(data)</code>.</p></li>
+<li><p><strong>destroy</strong> (<strong>session</strong>:<em>sessionAPI</em>)
+Event is broadcasted after workflow session is destroyed. After this event, other session process will be killed and apply cleanup to the current workflow session.</p></li>
+</ol>
+
+<h3>
+<a id="workflowactivityactivitynamestringactivity" class="anchor" href="#workflowactivityactivitynamestringactivity" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>workflow.activity(activityName:<em>String</em>):<em>Activity</em>
+</h3>
+
+<p>Creates an <a href="#ActivityAPI">Activity</a> instance used chain-define Actions and configurations. This is useful for defining Activity instances as parameters for <code>condition</code> and <code>fork</code> Action definition methods like the example below:</p>
+
+<div class="highlight highlight-source-js"><pre><span class="pl-k">var</span> workflow <span class="pl-k">=</span> <span class="pl-c1">require</span>(<span class="pl-s"><span class="pl-pds">"</span>apptivity<span class="pl-pds">"</span></span>);
+
+<span class="pl-smi">workflow</span>.<span class="pl-en">create</span>(<span class="pl-s"><span class="pl-pds">"</span>myActivity<span class="pl-pds">"</span></span>).
+    <span class="pl-en">condition</span>(
+        <span class="pl-smi">workflow</span>.<span class="pl-en">activity</span>(<span class="pl-s"><span class="pl-pds">"</span>removeData<span class="pl-pds">"</span></span>).
+            <span class="pl-en">guard</span>(<span class="pl-s"><span class="pl-pds">"</span>data/checkpermission<span class="pl-pds">"</span></span>).
+            <span class="pl-en">handler</span>(<span class="pl-s"><span class="pl-pds">"</span>data/doRemove<span class="pl-pds">"</span></span>),
+
+        <span class="pl-smi">workflow</span>.<span class="pl-en">activity</span>(<span class="pl-s"><span class="pl-pds">"</span>showMessage<span class="pl-pds">"</span></span>).
+            <span class="pl-en">handler</span>(<span class="pl-s"><span class="pl-pds">"</span>data/showPermissionError<span class="pl-pds">"</span></span>)
+    );</pre></div>
+
+<h3>
+<a id="workflowtasknamestring-runnerfunctionworkflowapi" class="anchor" href="#workflowtasknamestring-runnerfunctionworkflowapi" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><a name="namedTask"></a>workflow.task(name:<em>String</em>, runner:<em>Function</em>):<em>workflowAPI</em>
+</h3>
+
+<p>Registers named tasks. Useful for assigning named task to action handlers and guards when splitting definition and implementation into separate files.</p>
+
+<blockquote>
+<p><strong>Warning!</strong> Named task can only be registered once. Registering task with the same name of an existing task will throw an exception from this method.</p>
+</blockquote>
+
+<h3>
+<a id="workflowcreatetransformernamestring-handlerfunctionworkflowapi" class="anchor" href="#workflowcreatetransformernamestring-handlerfunctionworkflowapi" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><a name="createTransformer"></a>workflow.createTransformer(name:<em>String</em>, handler:<em>Function</em>):<em>workflowAPI</em>
+</h3>
+
+<p>Registers a named transformer to customize the exported Finite State Machine definition object. Named transformers are used as <code>transformer</code> parameter of the <a href="#transform">workflow.transform(workflowName, transformer)</a> method.</p>
+
+<p><code>handler</code> Function is the middleware used to customize <strong>state name</strong>, <strong>node name</strong>, <strong>node definition object</strong>, and <strong>resulting FSM definition object</strong> while building the exported object in <a href="#transform">workflow.transform(workflowName, transformer)</a> method.</p>
+
+<p><code>handler</code> Function's basic parameter is <code>handler(type:String, operation:Object, [others...])</code>. Other parameters excluding <code>operation</code> will vary according to <code>type</code> parameter.</p>
+
+<ol>
+<li><p><a name="createTransformer_initialize"></a><strong>handler</strong>(<strong>type</strong>:<code>"initialize"</code>, <strong>operation</strong>:<em>Object</em>, <strong>fsmName</strong>:<em>String</em>, <strong>configSettings</strong>:<em>Object</em>):<em>Object</em>
+Customizes the resulting FSM definition object by returning customization object. As for now, only <code>transitions:Object|Array</code> property in returned customization object is processed.</p></li>
+<li><p><strong>handler</strong>(<strong>type</strong>:<code>"state"</code>, <strong>operation</strong>:<em>Object</em>, <strong>stateName</strong>:<em>String</em>, <strong>stateType</strong>:<em>String</em>):<em>String</em>
+Customizes state name by returning new <code>stateName</code> String.
+<code>stateType</code> parameter determines the nature of the state. Possible values of <code>stateType</code> is <strong>link</strong>, <strong>condition</strong>, <strong>fork</strong>, and <strong>end</strong>.</p></li>
+<li><p><strong>handler</strong>(<strong>type</strong>:<code>"node"</code>, <strong>operation</strong>:<em>Object</em>, <strong>customStateName</strong>:<em>String</em>, <strong>proposedNode</strong>:<em>Object</em>):<em>String</em>
+Customizes node name by returning new <code>nodeName</code> String. Default node name is <code>Activity.prototype.id</code>.
+node definition properties can be customized by replacing or adding properties in <code>proposedNode</code> object parameter.</p></li>
+<li>
+<p><strong>handler</strong>(<strong>type</strong>:<code>"transition"</code>, <strong>operation</strong>:<em>Object</em>, <strong>sourceCustomStateName</strong>:<em>String</em>, <strong>customNodeName</strong>:<em>Object</em>, <strong>targetCustomStateName</strong>):<em>Mixed</em>
+Customizes transition definition.
+Transition is a row in State Table of a Finite State Machine which contains the following columns: <code>sourceCustomStateName</code>, <code>customNodeName</code> and <code>targetCustomStateName</code>.
+There are two possible type of value to return depeding on the <code>transitions</code> property customized in <a href="#createTransformer_initialize">"initialize"</a> phase.</p>
+
+<ul>
+<li>
+<strong>Array transitions</strong> should return <code>Object</code> value representing the transition. Default transition value is <code>{ from: "sourceState", name: "nodeName", to: "targetState" }</code>. Returning non-object value will use the latter default value as transitions item.</li>
+<li>
+<strong>Object transitions</strong> can return any value representing the target state. Default target state is the <code>targetCustomStateName</code> parameter. Returning <code>null</code> or <code>undefined</code> will use the default <code>targetCustomStateName</code> parameter.</li>
+</ul>
+</li>
+</ol>
+
+<h3>
+<a id="workflowtransformworkflownamestring-transformerstringfunctionworkflowapi" class="anchor" href="#workflowtransformworkflownamestring-transformerstringfunctionworkflowapi" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><a name="trasform"></a>workflow.transform(workflowName:<em>String</em>, [transformer:<em>String|Function</em>]):<em>workflowAPI</em>
+</h3>
+
+<p>Exports internal Finite State Machine of <code>workflowName</code> workflow using the optional <code>transformer</code> parameter middleware. The optional <code>transformer</code> parameter can be any of the descriptions below:</p>
+
+<ul>
+<li>Providing String <code>transformer</code> parameter of <code>transform()</code> method will use the registered transformer defined with <a href="#createTransformer">workflow.createTransformer(name:<em>String</em>, handler:<em>Function</em>):<em>workflowAPI</em></a> method.</li>
+<li>Providing Function <code>transformer</code> parameter of <code>transform()</code> method will directly use <code>transformer</code> parameter as customization callback middleware.</li>
+<li>Leaving out <code>transformer</code> parameter will use <code>"default"</code> transformer which results into an exported Object used to create an instance of <a href="https://www.npmjs.com/package/javascript-state-machine">javascript-state-machine</a> with <code>action</code> property containing node definitions.</li>
+</ul>
+
+<h2>
+<a id="license" class="anchor" href="#license" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>License</h2>
+
+<p><a href="https://opensource.org/licenses/MIT">MIT</a></p>
+
+      <footer class="site-footer">
+        <span class="site-footer-owner"><a href="https://github.com/diko316/apptivity">Apptivity</a> is maintained by <a href="https://github.com/diko316">diko316</a>.</span>
+
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+      </footer>
+
+    </section>
+
+  
+  </body>
+</html>
