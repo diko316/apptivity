@@ -214,7 +214,7 @@ Event is broadcasted after workflow session is destroyed. After this event, othe
 
 
 ### workflow.activity(activityName:*String*):*Activity*
-Creates a standalone [Activity](#ActivityAPI) which will be further configured by chain-defining its actions and action attributes. This is useful when defining `condition` options and `fork` actions as their parameters like the example below:
+Creates an [Activity](#ActivityAPI) instance used chain-define Actions and configurations. This is useful for defining Activity instances as parameters for `condition` and `fork` Action definition methods like the example below:
 ```javascript
 var workflow = require("apptivity");
 
