@@ -1,6 +1,6 @@
 # apptivity
 
-[![NPM](https://nodei.co/npm/apptivity.png)](https://nodei.co/npm/apptivity/)
+[![npm version](https://badge.fury.io/js/apptivity.svg)](https://badge.fury.io/js/apptivity)
 
 An activity workflow player that sequentially runs action, condition, fork, merge and prompt input actions.
 
