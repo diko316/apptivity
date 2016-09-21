@@ -87,7 +87,11 @@ var createUserStateMachine = StateMachine.create(
 ```
 
 
-## API
+## Documentation
+
+API Documentation is now hosted in a separate page. Please find it [here](https://diko316.github.io/apptivity/#api)
+
+
 
 ### workflow(name:*String*):*sessionAPI*
 

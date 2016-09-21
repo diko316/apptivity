@@ -1,7 +1,7 @@
 {
   "name": "apptivity",
   "version": "1.1.2",
-  "description": "Stateful Activities",
+  "description": "Stateful Activities as Improvement in Software Development",
   "main": "index.js",
   "scripts": {
     "test": "node_modules/mocha/bin/mocha ./test/index.js"
