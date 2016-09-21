@@ -1,5 +1,7 @@
 # apptivity
 
+[![NPM](https://nodei.co/npm/apptivity.png)](https://nodei.co/npm/apptivity/)
+
 An activity workflow player that sequentially runs action, condition, fork, merge and prompt input actions.
 
 This library has the following features.
