@@ -6,15 +6,15 @@ An activity workflow player that sequentially runs action, condition, fork, merg
 
 This library has the following features.
 
-1. Convenient and rich [definition API](#usage_definition) to define and configure Workflow activities and actions. It helps developers to focus on overall activity logic before detailing them with their implementations.
+1. Convenient and rich [definition API](https://diko316.github.io/apptivity/#usage_definition) to define and configure Workflow activities and actions. It helps developers to focus on overall activity logic before detailing them with their implementations.
 
 2. Flexible definition API allows splitting of Worfklow activity definition with their implementation, keeping files and directories of Workflow modules organized.
 
 3. Workflow activities and actions are more predictable as they each publish an [immutable](https://www.npmjs.com/package/immutable) state object containing unique state name, action name, request data, and response data per completed run of Activity action.
 
-4. Activity action supports asynchronous runs by supplying a `callback` function that returns Promise Object when defining Action implementations using [handler(callback:Function)](#ActivityAPI_handler) or [guard(callback:Function)](#ActivityAPI_guard) methods.
+4. Activity action supports asynchronous runs by supplying a `callback` function that returns Promise Object when defining Action implementations using [handler(callback:Function)](https://diko316.github.io/apptivity/#ActivityAPI_handler) or [guard(callback:Function)](https://diko316.github.io/apptivity/#ActivityAPI_guard) methods.
 
-5. Workflows' internal Finite State Machine can be exported into any custom JSON schema using [workflow.trasform(workflowName:String)](#transform).
+5. Workflows' internal Finite State Machine can be exported into any custom JSON schema using [workflow.trasform(workflowName:String)](https://diko316.github.io/apptivity/#transform).
 
 ## Installation
 
